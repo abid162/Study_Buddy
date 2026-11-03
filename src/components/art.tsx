@@ -1,202 +1,280 @@
-import { Award, Blocks, Goal, MicVocal, Music, Rocket, type LucideIcon } from 'lucide-react'
-import type { ThemeId } from '../data/questions'
-import type { Brick, BrickColor } from '../data/themes'
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { Lock, Star } from 'lucide-react'
+import { ISLANDS, photoUrl, type Island, type IslandId } from '../data/world'
 
-export const THEME_ICON: Record<ThemeId, LucideIcon> = {
-  football: Goal,
-  wrestling: Award,
-  kpop: MicVocal,
-  building: Blocks,
-  music: Music,
-  space: Rocket,
-}
+/* ---------------- Nova, the study buddy (preset cartoon character) ---------------- */
 
-const FILL: Record<BrickColor, { face: string; edge: string; shine: string }> = {
-  red: { face: '#D9312B', edge: '#9E1F1A', shine: '#EC6A64' },
-  yellow: { face: '#F6C21C', edge: '#B98C00', shine: '#FFDD6E' },
-  blue: { face: '#1C5FCC', edge: '#0F3D8A', shine: '#5A8FE6' },
-  green: { face: '#2E9E4F', edge: '#1B6B33', shine: '#62C27F' },
-  white: { face: '#FFFFFF', edge: '#9AB0CC', shine: '#FFFFFF' },
-  ink: { face: '#14284B', edge: '#07152D', shine: '#3D5478' },
-}
+export type Mood = 'happy' | 'think' | 'cheer' | 'wink'
 
-const U = 30
-const H = 24
-const STUD_W = 14
-const STUD_H = 6
-
-function BrickShape({ b, y, ghost, next, drop, delay }: { b: Brick; y: number; ghost?: boolean; next?: boolean; drop?: boolean; delay?: number }) {
-  const x = b.x * U
-  const w = b.w * U
-  const studs = Array.from({ length: Math.max(1, Math.round(b.w)) }, (_, i) => x + i * U + (U - STUD_W) / 2 + (b.w % 1 ? (U * (b.w % 1)) / 2 : 0))
-  if (ghost) {
-    const stroke = next ? '#1C5FCC' : '#7F93B2'
-    return (
-      <g opacity={next ? 1 : 0.7}>
-        {studs.map((sx, i) => (
-          <rect key={i} x={sx} y={y - STUD_H} width={STUD_W} height={STUD_H} rx={2} fill="none" stroke={stroke} strokeWidth={1.5} strokeDasharray="3 3" />
-        ))}
-        <rect x={x + 1} y={y + 1} width={w - 2} height={H - 2} rx={3} fill={next ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.3)'} stroke={stroke} strokeWidth={next ? 2 : 1.5} strokeDasharray="4 4" />
+export function Buddy({ mood = 'happy', className, title }: { mood?: Mood; className?: string; title?: string }) {
+  const eyes =
+    mood === 'cheer' ? (
+      <g fill="none" stroke="#17153A" strokeWidth={4.5} strokeLinecap="round">
+        <path d="M38 60 q7 -8 14 0" />
+        <path d="M68 60 q7 -8 14 0" />
+      </g>
+    ) : mood === 'wink' ? (
+      <g>
+        <ellipse cx={45} cy={59} rx={6.5} ry={8} fill="#17153A" />
+        <circle cx={47.5} cy={55.5} r={2.4} fill="#fff" />
+        <path d="M68 60 q7 -6 14 0" fill="none" stroke="#17153A" strokeWidth={4.5} strokeLinecap="round" />
+      </g>
+    ) : (
+      <g>
+        <ellipse cx={45} cy={mood === 'think' ? 56 : 59} rx={6.5} ry={8} fill="#17153A" />
+        <ellipse cx={75} cy={mood === 'think' ? 56 : 59} rx={6.5} ry={8} fill="#17153A" />
+        <circle cx={47.5} cy={mood === 'think' ? 52.5 : 55.5} r={2.4} fill="#fff" />
+        <circle cx={77.5} cy={mood === 'think' ? 52.5 : 55.5} r={2.4} fill="#fff" />
       </g>
     )
-  }
-  const f = FILL[b.c]
+  const mouth =
+    mood === 'cheer' ? (
+      <path d="M52 77 q8 12 16 0 z" fill="#17153A" />
+    ) : mood === 'think' ? (
+      <path d="M55 79 q5 -2 10 0" fill="none" stroke="#17153A" strokeWidth={3.5} strokeLinecap="round" />
+    ) : (
+      <path d="M53 76 q7 7 14 0" fill="none" stroke="#17153A" strokeWidth={3.5} strokeLinecap="round" />
+    )
   return (
-    <g className={drop ? 'brick-drop' : undefined} style={drop ? { animationDelay: `${delay ?? 0}ms` } : undefined}>
-      {studs.map((sx, i) => (
-        <g key={i}>
-          <rect x={sx} y={y - STUD_H} width={STUD_W} height={STUD_H + 2} rx={2} fill={f.face} stroke={f.edge} strokeWidth={1.5} />
-          <rect x={sx + 3} y={y - STUD_H + 1.5} width={4} height={2} rx={1} fill={f.shine} opacity={0.8} />
-        </g>
-      ))}
-      <rect x={x + 0.75} y={y} width={w - 1.5} height={H} rx={3} fill={f.face} stroke={f.edge} strokeWidth={1.5} />
-      <rect x={x + 4} y={y + 3} width={w - 8} height={3} rx={1.5} fill={f.shine} opacity={0.55} />
-    </g>
-  )
-}
-
-export function BrickModel({
-  rows,
-  built,
-  ghostNext = false,
-  ghostAll = false,
-  dropRow,
-  label,
-  className,
-}: {
-  rows: Brick[][]
-  built: number
-  ghostNext?: boolean
-  ghostAll?: boolean
-  dropRow?: number
-  label: string
-  className?: string
-}) {
-  const plateY = rows.length * H + 22
-  const width = 8 * U + 20
-  const height = plateY + 22
-  return (
-    <svg viewBox={`-10 -6 ${width} ${height}`} role="img" aria-label={label} className={className}>
-      <rect x={-6} y={plateY} width={8 * U + 12} height={14} rx={3} fill="#5E7699" />
-      {Array.from({ length: 8 }, (_, i) => (
-        <rect key={i} x={i * U + (U - STUD_W) / 2} y={plateY - 4} width={STUD_W} height={5} rx={1.5} fill="#5E7699" />
-      ))}
-      {rows.map((row, i) => {
-        const y = plateY - (i + 1) * H
-        if (i < built) return row.map((b, j) => <BrickShape key={`${i}-${j}`} b={b} y={y} drop={dropRow === i} delay={j * 60} />)
-        if ((ghostNext && i === built) || (ghostAll && i >= built))
-          return row.map((b, j) => <BrickShape key={`${i}-${j}`} b={b} y={y} ghost next={ghostNext && i === built} />)
-        return null
-      })}
+    <svg viewBox="0 0 120 120" className={className} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
+      <defs>
+        <radialGradient id="nova-fur" cx="40%" cy="30%" r="75%">
+          <stop offset="0%" stopColor="#FFAE5C" />
+          <stop offset="100%" stopColor="#F2701F" />
+        </radialGradient>
+      </defs>
+      <path d="M86 98 C112 96 116 68 104 56 C112 78 98 90 82 88 Z" fill="#F2701F" />
+      <path d="M100 66 C108 74 106 86 98 90 C102 82 102 74 100 66 Z" fill="#FFF4E6" />
+      <ellipse cx={60} cy={102} rx={28} ry={16} fill="url(#nova-fur)" />
+      <ellipse cx={60} cy={106} rx={14} ry={9} fill="#FFF4E6" />
+      <path d="M24 44 L30 10 L52 32 Z" fill="url(#nova-fur)" />
+      <path d="M96 44 L90 10 L68 32 Z" fill="url(#nova-fur)" />
+      <path d="M30 38 L33 19 L45 31 Z" fill="#FFC2B0" />
+      <path d="M90 38 L87 19 L75 31 Z" fill="#FFC2B0" />
+      <circle cx={60} cy={60} r={36} fill="url(#nova-fur)" />
+      <path d="M28 66 C34 92 86 92 92 66 C84 74 72 70 60 72 C48 70 36 74 28 66 Z" fill="#FFF4E6" />
+      {eyes}
+      <ellipse cx={60} cy={70} rx={5} ry={3.6} fill="#17153A" />
+      {mouth}
+      <ellipse cx={34} cy={72} rx={6} ry={3.6} fill="#FF7A8A" opacity={0.45} />
+      <ellipse cx={86} cy={72} rx={6} ry={3.6} fill="#FF7A8A" opacity={0.45} />
     </svg>
   )
 }
 
-export interface AvatarLook {
-  skin: number
-  hair: number
-  hairColor: number
-  top: number
-  extra: number
-}
+/* ---------------- Photo with illustrated fallback ---------------- */
 
-export const SKINS = ['#F7D7BC', '#EBB892', '#C98B60', '#91603F', '#5E3B27']
-export const HAIR_COLORS = ['#2B1B12', '#6B3E1F', '#C9852F', '#1C5FCC']
-export const TOPS = ['#1C5FCC', '#D9312B', '#2E9E4F', '#F6C21C']
-export const HAIR_STYLES = ['Short', 'Curly', 'Bun', 'Spiky']
-export const EXTRAS = ['None', 'Cap', 'Headphones', 'Glasses']
-
-export function Avatar({ look, className, title }: { look: AvatarLook; className?: string; title?: string }) {
-  const skin = SKINS[look.skin]
-  const hair = HAIR_COLORS[look.hairColor]
-  const top = TOPS[look.top]
+export function Photo({ island, alt, className, w = 900 }: { island: IslandId; alt: string; className?: string; w?: number }) {
+  const [failed, setFailed] = useState(false)
+  const tint = ISLANDS.find((i) => i.id === island)!.tint
   return (
-    <svg viewBox="0 0 120 130" className={className} role="img" aria-label={title ?? 'Your avatar'}>
-      <path d="M22 130 V104 Q22 86 40 84 H80 Q98 86 98 104 V130 Z" fill={top} />
-      <path d="M48 84 L60 98 L72 84" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
-      <rect x={53} y={70} width={14} height={16} rx={4} fill={skin} />
-      {look.hair === 2 && <circle cx={60} cy={14} r={13} fill={hair} />}
-      <ellipse cx={60} cy={48} rx={29} ry={30} fill={skin} />
-      {look.hair === 0 && <path d="M31 46 Q30 18 60 17 Q90 18 89 46 Q82 30 60 30 Q40 30 31 46 Z" fill={hair} />}
-      {look.hair === 1 && (
-        <g fill={hair}>
-          {[34, 44, 54, 64, 74, 84].map((cx, i) => (
-            <circle key={cx} cx={cx} cy={i % 2 ? 24 : 30} r={10} />
+    <div className={`relative overflow-hidden ${className ?? ''}`} style={{ background: `linear-gradient(135deg, ${tint[0]}, ${tint[1]})` }}>
+      {!failed && (
+        <img
+          src={photoUrl(island, w)}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      {failed && (
+        <svg viewBox="0 0 200 100" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full opacity-30" aria-hidden>
+          {Array.from({ length: 14 }, (_, i) => (
+            <circle key={i} cx={(i * 37) % 200} cy={(i * 23) % 100} r={6 + (i % 4) * 5} fill="#fff" opacity={0.25} />
           ))}
-          <circle cx={30} cy={42} r={8} />
-          <circle cx={90} cy={42} r={8} />
-        </g>
+        </svg>
       )}
-      {look.hair === 2 && <path d="M31 46 Q32 20 60 20 Q88 20 89 46 Q80 32 60 31 Q40 32 31 46 Z" fill={hair} />}
-      {look.hair === 3 && <path d="M30 44 L34 22 L42 30 L48 12 L56 26 L62 8 L68 26 L76 12 L80 30 L88 22 L90 44 Q80 32 60 31 Q40 32 30 44 Z" fill={hair} />}
-      <ellipse cx={48} cy={50} rx={3.6} ry={4.4} fill="#14284B" />
-      <ellipse cx={72} cy={50} rx={3.6} ry={4.4} fill="#14284B" />
-      <circle cx={49.2} cy={48.6} r={1.2} fill="#fff" />
-      <circle cx={73.2} cy={48.6} r={1.2} fill="#fff" />
-      <path d="M50 62 Q60 70 70 62" fill="none" stroke="#14284B" strokeWidth={3} strokeLinecap="round" />
-      <ellipse cx={42} cy={60} rx={5} ry={3} fill="#E5735F" opacity={0.25} />
-      <ellipse cx={78} cy={60} rx={5} ry={3} fill="#E5735F" opacity={0.25} />
-      {look.extra === 1 && (
+    </div>
+  )
+}
+
+/* ---------------- Island landmarks (picture-book style) ---------------- */
+
+function Landmark({ id }: { id: IslandId }) {
+  switch (id) {
+    case 'football':
+      return (
         <g>
-          <path d="M30 36 Q32 14 60 14 Q88 14 90 36 Z" fill="#D9312B" />
-          <path d="M60 34 H100 Q102 40 96 40 H60 Z" fill="#B3221D" />
+          <ellipse cx={0} cy={-6} rx={26} ry={13} fill="#E8EEF7" stroke="#17153A" strokeWidth={2} />
+          <ellipse cx={0} cy={-8} rx={19} ry={8} fill="#2FBF6B" stroke="#17153A" strokeWidth={1.5} />
+          <line x1={0} y1={-16} x2={0} y2={0} stroke="#fff" strokeWidth={1.5} />
+          <circle cx={0} cy={-8} r={3} fill="none" stroke="#fff" strokeWidth={1.2} />
+          <rect x={-27} y={-30} width={3} height={22} fill="#17153A" />
+          <rect x={24} y={-30} width={3} height={22} fill="#17153A" />
+          <rect x={-31} y={-34} width={11} height={6} rx={2} fill="#FFC93C" stroke="#17153A" strokeWidth={1.5} />
+          <rect x={20} y={-34} width={11} height={6} rx={2} fill="#FFC93C" stroke="#17153A" strokeWidth={1.5} />
         </g>
-      )}
-      {look.extra === 2 && (
+      )
+    case 'wrestling':
+      return (
         <g>
-          <path d="M28 52 Q28 12 60 12 Q92 12 92 52" fill="none" stroke="#14284B" strokeWidth={5} strokeLinecap="round" />
-          <rect x={22} y={44} width={12} height={20} rx={5} fill="#14284B" />
-          <rect x={86} y={44} width={12} height={20} rx={5} fill="#14284B" />
+          <path d="M-22 -2 L22 -2 L18 -14 L-18 -14 Z" fill="#3E8EF0" stroke="#17153A" strokeWidth={2} />
+          {[-18, 18].map((x) => (
+            <rect key={x} x={x - 2} y={-32} width={4} height={20} fill="#17153A" />
+          ))}
+          {[-26, -21].map((y) => (
+            <line key={y} x1={-16} y1={y} x2={16} y2={y} stroke="#FF6B57" strokeWidth={2.5} />
+          ))}
+          <path d="M-8 -40 h16 l-3 8 h-10 z" fill="#FFC93C" stroke="#17153A" strokeWidth={1.5} />
         </g>
-      )}
-      {look.extra === 3 && (
-        <g fill="none" stroke="#14284B" strokeWidth={3}>
-          <circle cx={48} cy={50} r={9} />
-          <circle cx={72} cy={50} r={9} />
-          <path d="M57 50 H63" />
+      )
+    case 'music':
+      return (
+        <g>
+          <path d="M-26 -2 h52 v-8 h-52 z" fill="#17153A" />
+          <path d="M-24 -10 Q0 -44 24 -10 Z" fill="#7C5CFF" stroke="#17153A" strokeWidth={2} />
+          <path d="M-14 -10 Q0 -32 14 -10 Z" fill="#FFC93C" opacity={0.9} />
+          <circle cx={-6} cy={-36} r={3} fill="#FF6B57" />
+          <circle cx={8} cy={-40} r={3} fill="#22C58B" />
+          <path d="M14 -44 v-10 l7 -2 v9" fill="none" stroke="#17153A" strokeWidth={2} strokeLinecap="round" />
         </g>
-      )}
+      )
+    case 'story':
+      return (
+        <g>
+          {[-14, 0, 14].map((x, i) => (
+            <g key={x}>
+              <rect x={x - 2} y={-14} width={4} height={12} fill="#7A4A23" />
+              <circle cx={x} cy={-22 - (i === 1 ? 8 : 0)} r={i === 1 ? 14 : 11} fill={i === 1 ? '#1FA463' : '#2FBF6B'} stroke="#17153A" strokeWidth={2} />
+            </g>
+          ))}
+          <path d="M-10 -4 h20 l-2 -8 h-16 z" fill="#FFF4E6" stroke="#17153A" strokeWidth={1.5} />
+        </g>
+      )
+    case 'bricks':
+      return (
+        <g>
+          {[
+            [-20, -10, 16, '#FF6B57'],
+            [-2, -10, 16, '#3E8EF0'],
+            [-11, -22, 16, '#FFC93C'],
+            [7, -22, 12, '#22C58B'],
+            [-4, -34, 12, '#7C5CFF'],
+          ].map(([x, y, w, c], i) => (
+            <g key={i}>
+              <rect x={x as number} y={y as number} width={w as number} height={10} rx={2} fill={c as string} stroke="#17153A" strokeWidth={1.5} />
+              <rect x={(x as number) + 3} y={(y as number) - 3} width={4} height={3} rx={1} fill={c as string} stroke="#17153A" strokeWidth={1} />
+            </g>
+          ))}
+        </g>
+      )
+    case 'space':
+      return (
+        <g>
+          <path d="M0 -46 C10 -34 10 -14 6 -4 h-12 C-10 -14 -10 -34 0 -46 Z" fill="#FFFFFF" stroke="#17153A" strokeWidth={2} />
+          <circle cx={0} cy={-28} r={4} fill="#3E8EF0" stroke="#17153A" strokeWidth={1.5} />
+          <path d="M-6 -12 l-8 10 h8 z M6 -12 l8 10 h-8 z" fill="#FF6B57" stroke="#17153A" strokeWidth={1.5} />
+        </g>
+      )
+  }
+}
+
+/* ---------------- World map ---------------- */
+
+const PATH = 'M92 112 C170 70 210 70 268 92 C320 130 300 190 278 240 C230 300 140 230 86 272 C40 320 120 360 176 372 C220 382 250 380 286 404'
+
+export function WorldMap({ current, onPick }: { current: IslandId; onPick: (i: Island) => void }) {
+  return (
+    <svg viewBox="0 0 360 480" className="h-auto w-full" role="group" aria-label="Your world map">
+      <defs>
+        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#7CC7FF" />
+          <stop offset="100%" stopColor="#3E8EF0" />
+        </linearGradient>
+        <radialGradient id="isl-grass" cx="50%" cy="35%" r="70%">
+          <stop offset="0%" stopColor="#9BE7A8" />
+          <stop offset="100%" stopColor="#4CC46E" />
+        </radialGradient>
+      </defs>
+      <rect width={360} height={480} rx={28} fill="url(#sea)" />
+      <g className="wave" opacity={0.35} fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round">
+        {[[30, 40], [220, 30], [150, 190], [20, 420], [300, 330], [140, 460], [250, 470]].map(([x, y], i) => (
+          <path key={i} d={`M${x} ${y} q6 -5 12 0 t12 0`} />
+        ))}
+      </g>
+      <g fill="#fff" opacity={0.85}>
+        <ellipse cx={180} cy={28} rx={22} ry={8} />
+        <ellipse cx={196} cy={24} rx={14} ry={8} />
+        <ellipse cx={40} cy={200} rx={16} ry={6} />
+      </g>
+      <path d={PATH} fill="none" stroke="#FFFFFF" strokeWidth={4} strokeDasharray="2 11" strokeLinecap="round" opacity={0.95} />
+
+      {ISLANDS.map((isl) => {
+        const active = isl.id === current
+        return (
+          <g
+            key={isl.id}
+            transform={`translate(${isl.x} ${isl.y})`}
+            role="button"
+            tabIndex={0}
+            aria-label={`${isl.name}${isl.locked ? ', locked' : `, level ${isl.level}`}`}
+            onClick={() => onPick(isl)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onPick(isl)
+              }
+            }}
+            style={{ cursor: 'pointer', outline: 'none' }}
+            className="group"
+          >
+            <ellipse cx={0} cy={10} rx={50} ry={22} fill="#1F5FB8" opacity={0.35} />
+            <ellipse cx={0} cy={4} rx={50} ry={22} fill="#FFE3A3" stroke="#17153A" strokeWidth={2} />
+            <ellipse cx={0} cy={-1} rx={42} ry={17} fill={isl.locked ? '#B9C2D6' : 'url(#isl-grass)'} />
+            <g opacity={isl.locked ? 0.45 : 1}>
+              <Landmark id={isl.id} />
+            </g>
+            {active && <ellipse cx={0} cy={4} rx={56} ry={27} fill="none" stroke="#FFC93C" strokeWidth={3} strokeDasharray="6 5" />}
+            <g transform="translate(0 34)">
+              <rect x={-52} y={-11} width={104} height={22} rx={11} fill="#17153A" opacity={0.92} />
+              <text x={0} y={4.5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#fff" fontFamily="Fredoka Variable, sans-serif">
+                {isl.name}
+              </text>
+            </g>
+            {isl.locked ? (
+              <g transform="translate(38 -26)">
+                <circle r={12} fill="#17153A" />
+                <foreignObject x={-7} y={-7} width={14} height={14}>
+                  <Lock size={14} color="#fff" />
+                </foreignObject>
+              </g>
+            ) : (
+              <g transform="translate(40 -24)">
+                <circle r={12} fill="#FFC93C" stroke="#17153A" strokeWidth={2} />
+                <text y={4.5} textAnchor="middle" fontSize={12} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif">
+                  {isl.level}
+                </text>
+              </g>
+            )}
+          </g>
+        )
+      })}
+
+      <motion.g
+        initial={{ y: -6 }}
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <g transform={`translate(${ISLANDS.find((i) => i.id === current)!.x - 70} ${ISLANDS.find((i) => i.id === current)!.y - 58})`}>
+          <circle cx={20} cy={20} r={21} fill="#fff" stroke="#17153A" strokeWidth={2} />
+          <foreignObject x={2} y={2} width={36} height={36}>
+            <Buddy className="h-9 w-9" />
+          </foreignObject>
+        </g>
+      </motion.g>
     </svg>
   )
 }
 
-/** Pip, the Study Buddy: built from bricks, like everything else here. */
-export function Buddy({ className, mood = 'happy' }: { className?: string; mood?: 'happy' | 'thinking' | 'cheer' }) {
+export function Stars({ n, of = 3 }: { n: number; of?: number }) {
   return (
-    <svg viewBox="0 0 80 96" className={className} aria-hidden="true">
-      <line x1={40} y1={4} x2={40} y2={16} stroke="#14284B" strokeWidth={3} strokeLinecap="round" />
-      <circle cx={40} cy={5} r={4} fill={mood === 'cheer' ? '#2E9E4F' : '#D9312B'} />
-      <rect x={30} y={13} width={8} height={5} rx={1.5} fill="#1C5FCC" stroke="#0F3D8A" strokeWidth={1.2} />
-      <rect x={42} y={13} width={8} height={5} rx={1.5} fill="#1C5FCC" stroke="#0F3D8A" strokeWidth={1.2} />
-      <rect x={14} y={17} width={52} height={36} rx={6} fill="#1C5FCC" stroke="#0F3D8A" strokeWidth={2} />
-      <rect x={20} y={23} width={40} height={22} rx={5} fill="#E6F1FB" />
-      {mood === 'thinking' ? (
-        <>
-          <rect x={27} y={32} width={8} height={3} rx={1.5} fill="#14284B" />
-          <circle cx={50} cy={33} r={4} fill="#14284B" />
-        </>
-      ) : (
-        <>
-          <circle cx={31} cy={32} r={4} fill="#14284B" />
-          <circle cx={49} cy={32} r={4} fill="#14284B" />
-          <path d="M33 39 Q40 44 47 39" fill="none" stroke="#14284B" strokeWidth={2.5} strokeLinecap="round" />
-        </>
-      )}
-      <rect x={18} y={56} width={44} height={30} rx={5} fill="#F6C21C" stroke="#B98C00" strokeWidth={2} />
-      <rect x={25} y={64} width={30} height={6} rx={3} fill="#FFDD6E" />
-      {mood === 'cheer' ? (
-        <>
-          <rect x={2} y={40} width={12} height={22} rx={5} fill="#F6C21C" stroke="#B98C00" strokeWidth={2} transform="rotate(-25 8 51)" />
-          <rect x={66} y={40} width={12} height={22} rx={5} fill="#F6C21C" stroke="#B98C00" strokeWidth={2} transform="rotate(25 72 51)" />
-        </>
-      ) : (
-        <>
-          <rect x={6} y={58} width={12} height={22} rx={5} fill="#F6C21C" stroke="#B98C00" strokeWidth={2} />
-          <rect x={62} y={58} width={12} height={22} rx={5} fill="#F6C21C" stroke="#B98C00" strokeWidth={2} />
-        </>
-      )}
-      <rect x={24} y={86} width={12} height={8} rx={2} fill="#14284B" />
-      <rect x={44} y={86} width={12} height={8} rx={2} fill="#14284B" />
-    </svg>
+    <span className="inline-flex gap-0.5" aria-label={`${n} of ${of} stars`}>
+      {Array.from({ length: of }, (_, i) => (
+        <Star key={i} size={16} className={i < n ? 'fill-sun text-sun-deep' : 'text-mist-deep'} aria-hidden />
+      ))}
+    </span>
   )
 }
