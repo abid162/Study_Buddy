@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BookOpen, Calculator, Check, ChevronRight, Flame, Gem, Lock, Play, Sparkles, X } from 'lucide-react'
-import { CHILD, DAILY, islandById, type Island, type Quest } from '../data/world'
+import { BookOpen, Calculator, Check, Flame, Gem, Play, Sparkles, X } from 'lucide-react'
+import { CHILD, DAILY, islandById, type Island, type IslandId, type Quest } from '../data/world'
 import { Buddy, Photo, WorldMap } from '../components/art'
 import { useProfile } from '../data/profile'
 
@@ -32,13 +32,14 @@ function StatChips() {
   )
 }
 
-export function Home({ onPlay }: { onPlay: () => void }) {
+export function Home({ onPlay }: { onPlay: (island: IslandId) => void }) {
   const [sheet, setSheet] = useState<Island | null>(null)
   const { profile, reset } = useProfile()
   const name = profile?.name ?? 'Explorer'
   const year = profile?.year ?? 5
-  const picks = (profile?.interests ?? []).map((id) => islandById(id).name)
-  const quest = islandById('football').quests[0]
+  const picks: IslandId[] = profile?.interests.length ? profile.interests : ['football']
+  const featured = islandById(picks[0])
+  const quest = featured.quests.find((q) => q.playable) ?? featured.quests[0]
   const levelProgress = CHILD.xp / CHILD.xpNext
 
   return (
@@ -92,7 +93,7 @@ export function Home({ onPlay }: { onPlay: () => void }) {
             aria-labelledby="quest-title"
           >
             <div className="relative">
-              <Photo island="football" alt="A floodlit football stadium full of fans" className="h-44 sm:h-56" w={1200} />
+              <Photo island={featured.id} alt={`${featured.name} photo`} className="h-44 sm:h-56" w={1200} />
               <div className="absolute inset-0 bg-gradient-to-t from-night-deep/90 via-night-deep/30 to-transparent" aria-hidden />
               <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
                 <span className="chip bg-sun text-ink">
@@ -102,7 +103,7 @@ export function Home({ onPlay }: { onPlay: () => void }) {
                   {quest.title}
                 </h2>
                 <p className="text-white/85">
-                  Football Stadium. {quest.skill}, Year {year}.
+                  {featured.name}. {quest.skill}, Year {year}.
                 </p>
               </div>
             </div>
@@ -120,7 +121,7 @@ export function Home({ onPlay }: { onPlay: () => void }) {
                   ))}
                 </div>
               </div>
-              <button type="button" className="btn btn-sun w-full sm:w-auto" onClick={onPlay}>
+              <button type="button" className="btn btn-sun w-full sm:w-auto" onClick={() => onPlay(featured.id)}>
                 <Play size={20} className="fill-ink" aria-hidden /> Continue quest
               </button>
             </div>
@@ -133,14 +134,14 @@ export function Home({ onPlay }: { onPlay: () => void }) {
                 <h2 id="world-title" className="font-display text-2xl font-semibold">
                   Your world
                 </h2>
-                <p className="text-ink-soft">
-                  {picks.length ? `Your picks: ${picks.join(', ')}. ` : ''}Tap an island to see its quests.
-                </p>
+                <p className="text-ink-soft">Tap any world to jump straight into its quests.</p>
               </div>
-              <span className="chip shrink-0 whitespace-nowrap bg-mist text-ink-soft">5 of 6 open</span>
+              <span className="chip shrink-0 whitespace-nowrap bg-mist text-ink-soft">
+                {picks.length} {picks.length === 1 ? 'world' : 'worlds'}
+              </span>
             </div>
             <div className="mx-auto max-w-[560px]">
-              <WorldMap current="football" onPick={setSheet} />
+              <WorldMap picks={picks} current={featured.id} onPick={setSheet} />
             </div>
           </section>
         </div>
@@ -151,7 +152,7 @@ export function Home({ onPlay }: { onPlay: () => void }) {
             <Buddy mood="wink" className="float h-20 w-20 shrink-0" />
             <div>
               <p className="font-display text-lg font-semibold">Nova says</p>
-              <p className="text-ink-soft">{`Ready, ${name}? You're 2 steps from finishing Penalty Shootout.`}</p>
+              <p className="text-ink-soft">{`Ready, ${name}? ${quest.title} in ${featured.name} is waiting for you.`}</p>
             </div>
           </section>
 
@@ -245,7 +246,7 @@ function QuestRow({ q, onPlay }: { q: Quest; onPlay: () => void }) {
   )
 }
 
-function IslandSheet({ island, onClose, onPlay }: { island: Island | null; onClose: () => void; onPlay: () => void }) {
+function IslandSheet({ island, onClose, onPlay }: { island: Island | null; onClose: () => void; onPlay: (id: IslandId) => void }) {
   const closeRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!island) return
@@ -284,34 +285,15 @@ function IslandSheet({ island, onClose, onPlay }: { island: Island | null; onClo
               </div>
             </div>
             <div className="p-5 safe-bottom" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom, 0px))' }}>
-              {island.locked ? (
-                <div className="flex items-center gap-3 rounded-2xl bg-mist p-4">
-                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-night text-white">
-                    <Lock size={20} aria-hidden />
-                  </span>
-                  <p>
-                    <span className="block font-bold">Unlocks at level 8</span>
-                    <span className="text-ink-soft">Finish 2 more quests to open the Space Station.</span>
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="font-bold">Level {island.level} island</span>
-                    <span className="chip bg-sun-soft text-ink">{island.stars} stars collected</span>
-                  </div>
-                  <ul className="grid gap-2.5">
-                    {island.quests.map((q) => (
-                      <QuestRow key={q.id} q={q} onPlay={onPlay} />
-                    ))}
-                  </ul>
-                  {!island.quests.some((q) => q.playable) && (
-                    <p className="mt-4 flex items-center gap-2 text-sm text-ink-soft">
-                      <ChevronRight size={16} aria-hidden /> In this preview, Penalty Shootout on Football Stadium is playable.
-                    </p>
-                  )}
-                </>
-              )}
+              <div className="mb-3 flex items-center justify-between">
+                <span className="font-bold">Level {island.level} world</span>
+                <span className="chip bg-sun-soft text-ink">{island.stars} {island.stars === 1 ? 'star' : 'stars'} collected</span>
+              </div>
+              <ul className="grid gap-2.5">
+                {island.quests.map((q) => (
+                  <QuestRow key={q.id} q={q} onPlay={() => onPlay(island.id)} />
+                ))}
+              </ul>
             </div>
           </motion.div>
         </motion.div>

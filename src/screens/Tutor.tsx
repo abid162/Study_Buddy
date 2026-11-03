@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, Gem, Image as ImageIcon, Lightbulb, RefreshCw, SendHorizontal, Sparkles, Trophy } from 'lucide-react'
 import { Buddy, Photo, type Mood } from '../components/art'
-import { CHILD } from '../data/world'
+import { CHILD, islandById, type IslandId, type ProblemSpec } from '../data/world'
 import { useProfile } from '../data/profile'
 
 /* ---------------- scripted problems (answers checked in code, never by AI) ---------------- */
@@ -16,65 +16,74 @@ interface Problem {
   groups: number
   take: number
   unit: string
+  noun: string
   answer: number
   hints: [string, string, string]
   differently: string
   wrong: Record<number, string>
 }
 
-const PROBLEMS: Problem[] = [
-  {
-    id: 'p1',
-    step: 3,
-    scene: 'Your team takes 20 penalties in training.',
-    ask: 'They score three quarters of them. How many goals is that?',
-    total: 20,
-    groups: 4,
-    take: 3,
-    unit: 'goals',
-    answer: 15,
-    hints: [
-      'Three quarters means: split the 20 penalties into 4 equal groups, then count 3 of the groups.',
-      'Each group has 20 ÷ 4 penalties. How many is that?',
-      'Each group has 5 penalties. Three groups is 5 × 3.',
-    ],
-    differently: 'Imagine 4 friends share 20 stickers equally, so each gets the same. Three quarters is what 3 of those friends have together.',
-    wrong: {
-      5: "That's one quarter: the size of one group. Three quarters means 3 of the groups.",
-      60: "That's 20 × 3. Split into 4 equal groups first, then take 3 of them.",
-      80: "That's 20 × 4. Quarters means sharing into 4 groups, so the answer gets smaller.",
-      23: "That's 20 + 3. Fractions of an amount mean sharing into equal groups.",
-      17: "Close, but that's 20 − 3. Try sharing the 20 into 4 equal groups.",
-    },
-  },
-  {
-    id: 'p2',
-    step: 4,
-    scene: 'In the shootout, your goalkeeper faces 18 shots.',
-    ask: 'She saves two thirds of them. How many saves does she make?',
-    total: 18,
-    groups: 3,
-    take: 2,
-    unit: 'saves',
-    answer: 12,
-    hints: [
-      'Two thirds means: split the 18 shots into 3 equal groups, then count 2 of them.',
-      'Each group has 18 ÷ 3 shots. How many is that?',
-      'Each group has 6 shots. Two groups is 6 × 2.',
-    ],
-    differently: 'Picture 18 shots shared between 3 goal nets equally. Two thirds is what lands in 2 of the nets.',
-    wrong: {
-      6: "That's one third: one group. Two thirds means 2 groups.",
-      36: "That's 18 × 2. Share into 3 groups first, then take 2.",
-      54: "That's 18 × 3. Thirds means sharing into 3 groups.",
-      9: "That's half of 18. Thirds means 3 equal groups.",
-    },
-  },
-]
+const FRAC: Record<number, [string, string]> = { 2: ['half', 'halves'], 3: ['third', 'thirds'], 4: ['quarter', 'quarters'] }
+const WORD = ['zero', 'one', 'two', 'three', 'four']
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 
-/* ---------------- visual: penalties grouped into equal parts ---------------- */
+/** Builds a full problem (answer, hints, mistake messages) from a themed spec. Maths is computed here, not written by hand. */
+export function makeProblem(spec: ProblemSpec, id: string, step: number): Problem {
+  const { total, groups, take, noun } = spec
+  const per = total / groups
+  const frac = `${WORD[take]} ${take === 1 ? FRAC[groups][0] : FRAC[groups][1]}`
+  const answer = per * take
+  const wrong: Record<number, string> = {
+    [per]: `That's one ${FRAC[groups][0]}: the size of one group. ${cap(frac)} means ${WORD[take]} of the groups.`,
+    [total * take]: `That's ${total} × ${take}. Split into ${groups} equal groups first, then take ${take} of them.`,
+    [total * groups]: `That's ${total} × ${groups}. Sharing into ${groups} groups makes the answer smaller, not bigger.`,
+    [total + take]: `That's ${total} + ${take}. A fraction of an amount means sharing into equal groups.`,
+    [total - take]: `That's ${total} − ${take}. Try sharing the ${total} ${noun} into ${groups} equal groups.`,
+  }
+  delete wrong[answer]
+  return {
+    id,
+    step,
+    scene: spec.scene,
+    ask: spec.ask.replace('{frac}', frac).replace('{Frac}', cap(frac)),
+    total,
+    groups,
+    take,
+    unit: spec.unit,
+    noun,
+    answer,
+    hints: [
+      `${cap(frac)} means: split the ${total} ${noun} into ${groups} equal groups, then count ${WORD[take]} of the groups.`,
+      `Each group has ${total} ÷ ${groups} ${noun}. How many is that?`,
+      `Each group has ${per} ${noun}. ${cap(WORD[take])} groups is ${per} × ${take}.`,
+    ],
+    differently: `Imagine ${groups} friends share ${total} ${noun} equally, so everyone gets the same. ${cap(frac)} is what ${WORD[take]} of those friends have together.`,
+    wrong,
+  }
+}
 
-function Ball({ on }: { on: boolean }) {
+/* ---------------- visual: items grouped into equal parts ---------------- */
+
+function Token({ on, island }: { on: boolean; island: IslandId }) {
+  const [a] = islandById(island).tint
+  const fill = on ? a : '#C9CDE3'
+  const glyph: Record<Exclude<IslandId, 'football'>, ReactNode> = {
+    wrestling: <path d="M7 12 h10 M9 9 h6 v6 h-6 z" stroke="#fff" strokeWidth={1.8} fill="none" strokeLinejoin="round" />,
+    music: <path d="M10 16 a2 2 0 1 1 -1 -1.7 V7.5 l6 -1.5 v8 a2 2 0 1 1 -1 -1.7 V8.6 l-4 1" fill="#fff" />,
+    story: <path d="M7 8 h4.5 a1 1 0 0 1 1 1 v7 a1 1 0 0 0 -1 -1 H7 z M17 8 h-4.5 v8 a1 1 0 0 1 1 -1 H17 z" fill="#fff" />,
+    bricks: <g fill="#fff"><rect x={6.5} y={10} width={11} height={6} rx={1} /><rect x={8} y={8} width={3} height={2} rx={0.6} /><rect x={13} y={8} width={3} height={2} rx={0.6} /></g>,
+    space: <path d="M12 6 l1.8 3.8 4.2 .5 -3.1 2.9 .8 4.2 -3.7 -2.1 -3.7 2.1 .8 -4.2 -3.1 -2.9 4.2 -.5 z" fill="#fff" />,
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="h-full w-full" aria-hidden>
+      <circle cx={12} cy={12} r={10.5} fill={fill} stroke="#17153A" strokeWidth={1.4} />
+      {glyph[island as Exclude<IslandId, 'football'>]}
+    </svg>
+  )
+}
+
+function Ball({ on, island }: { on: boolean; island: IslandId }) {
+  if (island !== 'football') return <Token on={on} island={island} />
   return (
     <svg viewBox="0 0 24 24" className="h-full w-full" aria-hidden>
       <circle cx={12} cy={12} r={10.5} fill={on ? '#fff' : '#F4F5FB'} stroke="#17153A" strokeWidth={1.6} />
@@ -84,21 +93,21 @@ function Ball({ on }: { on: boolean }) {
   )
 }
 
-function GroupVisual({ p, grouped, highlight }: { p: Problem; grouped: boolean; highlight: boolean }) {
+function GroupVisual({ p, grouped, highlight, island }: { p: Problem; grouped: boolean; highlight: boolean; island: IslandId }) {
   const per = p.total / p.groups
   if (!grouped) {
     return (
-      <div className="grid grid-cols-10 gap-1.5" aria-label={`${p.total} footballs`}>
+      <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-10" aria-label={`${p.total} footballs`}>
         {Array.from({ length: p.total }, (_, i) => (
           <motion.span key={i} className="aspect-square" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: i * 0.02 }}>
-            <Ball on />
+            <Ball on island={island} />
           </motion.span>
         ))}
       </div>
     )
   }
   return (
-    <div className={`grid gap-2 ${p.groups === 4 ? 'grid-cols-4' : 'grid-cols-3'}`} aria-label={`${p.total} footballs in ${p.groups} groups of ${per}`}>
+    <div className={`grid gap-2 ${p.groups === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`} aria-label={`${p.total} footballs in ${p.groups} groups of ${per}`}>
       {Array.from({ length: p.groups }, (_, g) => {
         const lit = highlight && g < p.take
         return (
@@ -113,7 +122,7 @@ function GroupVisual({ p, grouped, highlight }: { p: Problem; grouped: boolean; 
             <div className="grid grid-cols-3 gap-1">
               {Array.from({ length: per }, (_, i) => (
                 <span key={i} className="aspect-square">
-                  <Ball on={!highlight || lit} />
+                  <Ball on={!highlight || lit} island={island} />
                 </span>
               ))}
             </div>
@@ -177,7 +186,10 @@ function BuddyBubble({ children, mood = 'happy' }: { children: ReactNode; mood?:
   )
 }
 
-export function Tutor({ onExit }: { onExit: () => void }) {
+export function Tutor({ island: islandId, onExit }: { island: IslandId; onExit: () => void }) {
+  const island = islandById(islandId)
+  const quest = island.quests.find((q) => q.playable) ?? island.quests[0]
+  const PROBLEMS = useRef(island.problems.map((sp, i) => makeProblem(sp, `${island.id}-${i}`, quest.done + 1 + i))).current
   const [pIndex, setPIndex] = useState(0)
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [typing, setTyping] = useState(false)
@@ -188,7 +200,7 @@ export function Tutor({ onExit }: { onExit: () => void }) {
   const [value, setValue] = useState('')
   const [confetti, setConfetti] = useState(0)
   const [gems, setGems] = useState(CHILD.gems)
-  const [stepsDone, setStepsDone] = useState(2)
+  const [stepsDone, setStepsDone] = useState(quest.done)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const timers = useRef<number[]>([])
@@ -212,7 +224,7 @@ export function Tutor({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     const t = timers.current
     say([
-      { from: 'buddy', text: `Welcome back, ${childName}! Step 3 of Penalty Shootout. The crowd is waiting.`, mood: 'cheer' },
+      { from: 'buddy', text: `Welcome back, ${childName}! Step ${quest.done + 1} of ${quest.title}. Let’s go.`, mood: 'cheer' },
       { from: 'card', problem: PROBLEMS[0] },
       { from: 'buddy', text: 'Type your answer below, or ask me for a hint. No rush.' },
     ])
@@ -239,7 +251,7 @@ export function Tutor({ onExit }: { onExit: () => void }) {
     setMsgs((c) => [...c, { id: next(), from: 'child', text: 'Show me with a picture' }])
     setGrouped(true)
     setHighlight(true)
-    say([{ from: 'buddy', text: `Look at the card: ${p.total} ${p.unit === 'goals' ? 'penalties' : 'shots'} in ${p.groups} equal groups. The yellow groups are the ${p.take} you need. Count them up.`, mood: 'wink' }])
+    say([{ from: 'buddy', text: `Look at the card: ${p.total} ${p.noun} in ${p.groups} equal groups. The yellow groups are the ${p.take} you need. Count them up.`, mood: 'wink' }])
   }
 
   const explain = () => {
@@ -290,12 +302,12 @@ export function Tutor({ onExit }: { onExit: () => void }) {
     setHighlight(false)
     setSolved(false)
     say([
-      { from: 'buddy', text: 'Next up: the shootout itself!', mood: 'cheer' },
+      { from: 'buddy', text: 'Brilliant. Here’s the next one!', mood: 'cheer' },
       { from: 'card', problem: PROBLEMS[ni] },
     ])
   }
 
-  const total = 6
+  const total = quest.steps
   const chips = [
     { label: hint === 0 ? 'Give me a hint' : hint < 3 ? 'Another hint' : 'All hints used', icon: Lightbulb, on: giveHint, disabled: hint >= 3 },
     { label: 'Show me a picture', icon: ImageIcon, on: showPicture, disabled: false },
@@ -312,7 +324,7 @@ export function Tutor({ onExit }: { onExit: () => void }) {
             <ArrowLeft size={24} aria-hidden />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-lg font-semibold leading-tight">Penalty Shootout</p>
+            <p className="truncate font-display text-lg font-semibold leading-tight">{quest.title}</p>
             <div className="mt-1 flex max-w-[220px] gap-1" aria-label={`${stepsDone} of ${total} steps done`}>
               {Array.from({ length: total }, (_, i) => (
                 <span key={i} className={`h-1.5 flex-1 rounded-full ${i < stepsDone ? 'bg-mint' : i === stepsDone ? 'bg-sun' : 'bg-white/20'}`} />
@@ -327,7 +339,7 @@ export function Tutor({ onExit }: { onExit: () => void }) {
 
       <div className="mx-auto flex w-full max-w-[1160px] min-h-0 flex-1 gap-6 lg:px-6 lg:py-6">
         {/* chat */}
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col lg:rounded-4xl lg:bg-[#E6E9F8]" aria-label="Chat with Nova">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col lg:rounded-4xl lg:bg-[#E6E9F8]" aria-label={`Chat with Nova: ${island.name}`}>
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6" aria-live="polite">
             <div className="mx-auto grid max-w-[680px] gap-4">
               {msgs.map((m) => (
@@ -349,17 +361,17 @@ export function Tutor({ onExit }: { onExit: () => void }) {
                   {m.from === 'card' && (
                     <article className="overflow-hidden rounded-4xl bg-paper shadow-pop">
                       <div className="relative">
-                        <Photo island="football" alt="Football stadium under floodlights" className="h-32 sm:h-40" />
+                        <Photo island={island.id} alt={`${island.name} photo`} className="h-32 sm:h-40" />
                         <div className="absolute inset-0 bg-gradient-to-t from-night-deep/80 to-transparent" aria-hidden />
                         <span className="chip absolute bottom-3 left-4 bg-sun text-ink">
-                          <Sparkles size={14} aria-hidden /> Step {m.problem.step} of 6
+                          <Sparkles size={14} aria-hidden /> Step {m.problem.step} of {quest.steps}
                         </span>
                       </div>
                       <div className="p-5">
                         <p className="text-lg leading-snug">{m.problem.scene}</p>
                         <p className="mt-1 font-display text-xl font-semibold leading-snug sm:text-2xl">{m.problem.ask}</p>
                         <div className="mt-4">
-                          <GroupVisual p={m.problem} grouped={m.problem.id === p.id ? grouped : true} highlight={m.problem.id === p.id ? highlight : true} />
+                          <GroupVisual island={island.id} p={m.problem} grouped={m.problem.id === p.id ? grouped : true} highlight={m.problem.id === p.id ? highlight : true} />
                         </div>
                         <p className="mt-3 text-sm text-ink-soft">Year {year} maths: find fractions of amounts.</p>
                       </div>

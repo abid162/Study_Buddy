@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Shell, type Tab } from './components/shell'
+import type { IslandId } from './data/world'
 import { Gate } from './screens/Gate'
 import { Home } from './screens/Home'
 import { Tutor } from './screens/Tutor'
@@ -22,6 +23,7 @@ function Root() {
   const [unlocked, setUnlocked] = useState(false)
   const [tab, setTab] = useState<Tab>('home')
   const [tutorKey, setTutorKey] = useState(0)
+  const [tutorIsland, setTutorIsland] = useState<IslandId | null>(null)
 
   useEffect(() => {
     try {
@@ -56,8 +58,15 @@ function Root() {
 
   return (
     <Shell tab={tab} onTab={go} hideNav={tab === 'tutor'}>
-      {tab === 'home' && <Home onPlay={() => go('tutor')} />}
-      {tab === 'tutor' && <Tutor key={tutorKey} onExit={() => go('home')} />}
+      {tab === 'home' && (
+        <Home
+          onPlay={(id) => {
+            setTutorIsland(id)
+            go('tutor')
+          }}
+        />
+      )}
+      {tab === 'tutor' && <Tutor key={tutorKey} island={tutorIsland ?? profile.interests[0] ?? 'football'} onExit={() => go('home')} />}
       {(tab === 'scan' || tab === 'read' || tab === 'parent') && <Soon tab={tab} onHome={() => go('home')} />}
     </Shell>
   )

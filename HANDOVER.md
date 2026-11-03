@@ -15,15 +15,16 @@ A visually impressive, phone/tablet-friendly demo link (Netlify) to win the clie
 - Deployment: Netlify from GitHub. Lovable was dropped (workspace Git permissions blocked it).
 
 ## Built in preview round 1
-- Child intake (after the passcode): Nova asks for the child's first name (validated and tidied, e.g. "mary-jane o'neil" becomes "Mary-Jane O'Neil") and school year (4, 5 or 6), then the child picks up to 3 worlds. Saved for the browser session; "Not <name>? Switch explorer" on Home restarts it. The name and year appear on Home, in the quest card and in Nova's tutor messages.
+- Child intake (after the passcode): Nova asks for the child's first name (validated and tidied, e.g. "mary-jane o'neil" becomes "Mary-Jane O'Neil") and school year (4, 5 or 6), then the child picks anywhere from 1 to all 6 worlds (with a Pick all option). Saved for the browser session; "Not <name>? Switch explorer" on Home restarts it. The name and year appear on Home, in the quest card and in Nova's tutor messages.
+- Worlds follow the child's picks: only picked worlds appear on the map (layout adapts to 1 to 6), Today's quest comes from the first pick, and there are no stages or locks, so every picked world opens straight away. Each world has its own playable quest with two themed fraction problems (football, wrestling, concert, story, bricks, space); answers, hints and mistake messages are generated and checked in code (`makeProblem` in Tutor.tsx).
 - Passcode screen (night sky, Nova, "Enter the world").
 - App shell: bottom tab bar on phones (World, Tutor, Scan, Read, Grown-ups); side rail at 1024px and wider.
-- Child home: greeting, streak, gems, level/XP bar; "Today's quest" hero card with photo and step progress; illustrated world map with 6 islands (Football Stadium, Wrestling Arena, Music Stage, Story Forest, Brick City, Space Station locked), dotted path and floating buddy marker; island sheet with photo, level, stars and quest list; Nova tip card; daily missions; Maths and English progress cards.
+- Child home: greeting, streak, gems, level/XP bar; "Today's quest" hero card with photo and step progress; illustrated world map with 6 islands (Football Stadium, Wrestling Arena, Music Stage, Story Forest, Brick City, no locks, no stage path) showing only the child's picks, with a floating buddy marker; island sheet with photo, level, stars and quest list; Nova tip card; daily missions; Maths and English progress cards.
 - AI tutor (hero feature, scripted): chat with Nova, typing indicator, themed problem card with photo, football visual that groups into equal parts and highlights the groups needed, hint ladder (3 levels), quick actions (hint, picture, explain differently), answer checked in code with specific mistake messages (e.g. 5 = one quarter only), confetti, +20 gems, "Step complete" card, second problem, back to world. Side panel on wide screens shows Nova's mood and the hint ladder.
 - Scan, Read and Grown-ups tabs: placeholder screens ("Arriving in the next preview").
 
 ## Still to build (next rounds)
-1. Onboarding extras: parent/guardian setup step, buddy picker (3 to 4 presets) and session length. Use the picked worlds to choose Today's quest.
+1. Onboarding extras: parent/guardian setup step, buddy picker (3 to 4 presets) and session length; a way to edit picked worlds later.
 2. Homework scanner: camera view, scanning animation, extracted text, step-by-step feedback.
 3. Reading coach: passage, live waveform, word highlighting, encouraging feedback.
 4. Focus mode: timed session and break screen.
@@ -45,7 +46,7 @@ Unzip over the local repo folder (delete the old `src` first so no stale files r
 $env:Path += ";C:\Program Files\Git\cmd;$env:LOCALAPPDATA\Programs\Git\cmd"
 cd "C:\Users\HamzaAbid\OneDrive - Cleartwo LTD\Desktop\New folder (2)"
 git add -A
-git commit -m "Add child intake: name, year and worlds"
+git commit -m "Worlds follow picks, no locks, every world playable"
 git push
 ```
 Netlify redeploys automatically.

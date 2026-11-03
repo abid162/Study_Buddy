@@ -23,6 +23,19 @@ export interface Quest {
   playable?: boolean
 }
 
+/** A themed "fractions of an amount" problem; answers are computed and checked in code. */
+export interface ProblemSpec {
+  scene: string
+  /** what is being counted, plural, e.g. "penalties" */
+  noun: string
+  /** the question verb phrase, e.g. "They score {frac} of them. How many goals is that?" */
+  ask: string
+  unit: string
+  total: number
+  groups: 2 | 3 | 4
+  take: number
+}
+
 export interface Island {
   id: IslandId
   name: string
@@ -34,8 +47,8 @@ export interface Island {
   y: number
   level: number
   stars: number
-  locked?: boolean
   quests: Quest[]
+  problems: [ProblemSpec, ProblemSpec]
 }
 
 export const ISLANDS: Island[] = [
@@ -53,6 +66,10 @@ export const ISLANDS: Island[] = [
       { id: 'league', title: 'League Table Climb', subject: 'Maths', skill: 'Adding and subtracting', steps: 5, done: 5 },
       { id: 'report', title: 'Match Report', subject: 'English', skill: 'Writing in the past tense', steps: 4, done: 0 },
     ],
+    problems: [
+      { scene: 'Your team takes 20 penalties in training.', noun: 'penalties', ask: 'They score {frac} of them. How many goals is that?', unit: 'goals', total: 20, groups: 4, take: 3 },
+      { scene: 'In the shootout, your goalkeeper faces 18 shots.', noun: 'shots', ask: 'She saves {frac} of them. How many saves does she make?', unit: 'saves', total: 18, groups: 3, take: 2 },
+    ],
   },
   {
     id: 'wrestling',
@@ -64,8 +81,12 @@ export const ISLANDS: Island[] = [
     level: 3,
     stars: 7,
     quests: [
-      { id: 'rounds', title: 'Tournament Rounds', subject: 'Maths', skill: 'Multiplication', steps: 6, done: 3 },
+      { id: 'rounds', title: 'Title Belt Tour', subject: 'Maths', skill: 'Fractions of amounts', steps: 6, done: 2, playable: true },
       { id: 'promo', title: 'Entrance Speech', subject: 'English', skill: 'Persuasive language', steps: 4, done: 0 },
+    ],
+    problems: [
+      { scene: 'Your wrestler fights 24 matches on the title tour.', noun: 'matches', ask: 'They win {frac} of them. How many wins is that?', unit: 'wins', total: 24, groups: 4, take: 3 },
+      { scene: '15 fans hold up signs for the big entrance.', noun: 'fans', ask: '{Frac} of the signs are gold. How many gold signs are there?', unit: 'signs', total: 15, groups: 3, take: 2 },
     ],
   },
   {
@@ -78,8 +99,12 @@ export const ISLANDS: Island[] = [
     level: 2,
     stars: 4,
     quests: [
-      { id: 'tickets', title: 'Sold-out Show', subject: 'Maths', skill: 'Rounding big numbers', steps: 5, done: 1 },
+      { id: 'tickets', title: 'Sold-out Show', subject: 'Maths', skill: 'Fractions of amounts', steps: 6, done: 2, playable: true },
       { id: 'lyrics', title: 'Rhythm and Rhyme', subject: 'English', skill: 'Poetry and syllables', steps: 4, done: 0 },
+    ],
+    problems: [
+      { scene: 'The band sells 40 tickets for a secret show.', noun: 'tickets', ask: '{Frac} of them are standing tickets. How many standing tickets?', unit: 'tickets', total: 40, groups: 4, take: 3 },
+      { scene: 'The new album has 21 songs.', noun: 'songs', ask: '{Frac} of them are dance tracks. How many dance tracks?', unit: 'songs', total: 21, groups: 3, take: 2 },
     ],
   },
   {
@@ -92,8 +117,12 @@ export const ISLANDS: Island[] = [
     level: 3,
     stars: 9,
     quests: [
-      { id: 'read', title: 'The Lost Map', subject: 'English', skill: 'Reading aloud', steps: 5, done: 2 },
+      { id: 'read', title: 'The Lost Map', subject: 'Maths', skill: 'Fractions of amounts', steps: 6, done: 2, playable: true },
       { id: 'inference', title: 'Detective Clues', subject: 'English', skill: 'Inference', steps: 4, done: 0 },
+    ],
+    problems: [
+      { scene: 'The Lost Map is a book with 32 pages.', noun: 'pages', ask: 'You have read {frac} of it. How many pages is that?', unit: 'pages', total: 32, groups: 4, take: 3 },
+      { scene: 'The forest library has 12 new books.', noun: 'books', ask: '{Frac} of them are adventure stories. How many adventure stories?', unit: 'books', total: 12, groups: 3, take: 2 },
     ],
   },
   {
@@ -105,7 +134,14 @@ export const ISLANDS: Island[] = [
     y: 372,
     level: 1,
     stars: 2,
-    quests: [{ id: 'build', title: 'Dream Bedroom', subject: 'Maths', skill: 'Area and perimeter', steps: 6, done: 0 }],
+    quests: [
+      { id: 'build', title: 'Dream Bedroom', subject: 'Maths', skill: 'Fractions of amounts', steps: 6, done: 2, playable: true },
+      { id: 'measure', title: 'Measure the Room', subject: 'Maths', skill: 'Area and perimeter', steps: 6, done: 0 },
+    ],
+    problems: [
+      { scene: 'Your dream bedroom build uses 28 bricks.', noun: 'bricks', ask: '{Frac} of them are red. How many red bricks is that?', unit: 'bricks', total: 28, groups: 4, take: 3 },
+      { scene: 'Brick City has 9 towers.', noun: 'towers', ask: '{Frac} of them are finished. How many towers are finished?', unit: 'towers', total: 9, groups: 3, take: 2 },
+    ],
   },
   {
     id: 'space',
@@ -114,10 +150,16 @@ export const ISLANDS: Island[] = [
     tint: ['#3E8EF0', '#1E2A78'],
     x: 286,
     y: 404,
-    level: 0,
-    stars: 0,
-    locked: true,
-    quests: [{ id: 'fuel', title: 'Fuel the Rocket', subject: 'Maths', skill: 'Decimals', steps: 6, done: 0 }],
+    level: 1,
+    stars: 1,
+    quests: [
+      { id: 'fuel', title: 'Fuel the Rocket', subject: 'Maths', skill: 'Fractions of amounts', steps: 6, done: 2, playable: true },
+      { id: 'orbit', title: 'Orbit Timer', subject: 'Maths', skill: 'Decimals', steps: 5, done: 0 },
+    ],
+    problems: [
+      { scene: 'The rocket carries 36 litres of fuel.', noun: 'litres', ask: 'It burns {frac} of the fuel at lift-off. How many litres is that?', unit: 'litres', total: 36, groups: 4, take: 3 },
+      { scene: '30 astronauts are training for the mission.', noun: 'astronauts', ask: '{Frac} of them pass the space test. How many pass?', unit: 'astronauts', total: 30, groups: 3, take: 2 },
+    ],
   },
 ]
 

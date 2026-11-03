@@ -62,7 +62,9 @@ export function Onboarding() {
     window.scrollTo({ top: 0 })
   }
 
-  const toggle = (id: IslandId) => setPicks((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= 3 ? p : [...p, id]))
+  const toggle = (id: IslandId) => setPicks((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+  const allPicked = picks.length === ISLANDS.length
+  const toggleAll = () => setPicks(allPicked ? [] : ISLANDS.map((i) => i.id))
 
   const finish = () => {
     if (!picks.length || !year) return
@@ -157,25 +159,25 @@ export function Onboarding() {
               <Speech mood="cheer">{`Nice to meet you, ${clean}! Which worlds should we explore first?`}</Speech>
               <div className="mt-4 rounded-4xl bg-paper p-5 shadow-pop sm:p-7">
                 <div className="mb-4 flex items-baseline justify-between gap-3">
-                  <p className="font-bold">Pick up to 3</p>
-                  <p className="text-sm font-bold text-ink-soft tabular" aria-live="polite">
-                    {picks.length} of 3 picked
+                  <p className="font-bold">
+                    Pick as many as you like <span className="font-normal text-ink-soft tabular" aria-live="polite">({picks.length} picked)</span>
                   </p>
+                  <button type="button" onClick={toggleAll} className="shrink-0 rounded-full px-3 py-1.5 text-sm font-bold text-grape-deep hover:bg-grape-soft">
+                    {allPicked ? 'Clear all' : 'Pick all'}
+                  </button>
                 </div>
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {ISLANDS.map((isl) => {
                     const on = picks.includes(isl.id)
-                    const full = !on && picks.length >= 3
-                    return (
+                                        return (
                       <li key={isl.id}>
                         <button
                           type="button"
                           aria-pressed={on}
-                          disabled={full}
                           onClick={() => toggle(isl.id)}
                           className={`group relative block aspect-[4/3] w-full overflow-hidden rounded-3xl text-left transition-[box-shadow,transform,opacity] duration-150 active:scale-[0.98] ${
                             on ? 'shadow-[0_0_0_4px_#FFC93C]' : 'shadow-card'
-                          } ${full ? 'opacity-45' : ''}`}
+                          }`}
                         >
                           <span className="absolute inset-0">
                             <Photo island={isl.id} alt="" className="h-full w-full" w={500} />

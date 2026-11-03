@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Lock, Star } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { ISLANDS, photoUrl, type Island, type IslandId } from '../data/world'
 
 /* ---------------- Nova, the study buddy (preset cartoon character) ---------------- */
@@ -174,11 +174,25 @@ function Landmark({ id }: { id: IslandId }) {
 
 /* ---------------- World map ---------------- */
 
-const PATH = 'M92 112 C170 70 210 70 268 92 C320 130 300 190 278 240 C230 300 140 230 86 272 C40 320 120 360 176 372 C220 382 250 380 286 404'
+/** Island positions on a 360-wide map, by how many worlds the child picked. No paths, no locks: every world is open. */
+const SLOTS: Record<number, { h: number; at: [number, number][] }> = {
+  1: { h: 250, at: [[180, 120]] },
+  2: { h: 270, at: [[100, 110], [262, 150]] },
+  3: { h: 360, at: [[96, 104], [266, 134], [168, 268]] },
+  4: { h: 380, at: [[96, 104], [266, 112], [98, 276], [264, 290]] },
+  5: { h: 470, at: [[94, 104], [268, 92], [276, 236], [88, 262], [180, 392]] },
+  6: { h: 480, at: [[92, 104], [268, 92], [278, 236], [86, 262], [176, 372], [292, 404]] },
+}
 
-export function WorldMap({ current, onPick }: { current: IslandId; onPick: (i: Island) => void }) {
+export function WorldMap({ picks, current, onPick }: { picks: IslandId[]; current: IslandId; onPick: (i: Island) => void }) {
+  const shown = picks.map((id) => ISLANDS.find((i) => i.id === id)!).filter(Boolean)
+  const slot = SLOTS[Math.min(Math.max(shown.length, 1), 6)]
+  const H = slot.h
+  const pos = (i: number) => slot.at[i] ?? slot.at[slot.at.length - 1]
+  const ci = Math.max(0, shown.findIndex((i) => i.id === current))
+  const [bx, by] = pos(ci)
   return (
-    <svg viewBox="0 0 360 480" className="h-auto w-full" role="group" aria-label="Your world map">
+    <svg viewBox={`0 0 360 ${H}`} className="h-auto w-full" role="group" aria-label="Your world map">
       <defs>
         <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#7CC7FF" />
@@ -188,29 +202,34 @@ export function WorldMap({ current, onPick }: { current: IslandId; onPick: (i: I
           <stop offset="0%" stopColor="#9BE7A8" />
           <stop offset="100%" stopColor="#4CC46E" />
         </radialGradient>
+        <clipPath id="sea-clip">
+          <rect width={360} height={H} rx={28} />
+        </clipPath>
       </defs>
-      <rect width={360} height={480} rx={28} fill="url(#sea)" />
-      <g className="wave" opacity={0.35} fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round">
-        {[[30, 40], [220, 30], [150, 190], [20, 420], [300, 330], [140, 460], [250, 470]].map(([x, y], i) => (
-          <path key={i} d={`M${x} ${y} q6 -5 12 0 t12 0`} />
-        ))}
+      <g clipPath="url(#sea-clip)">
+        <rect width={360} height={H} fill="url(#sea)" />
+        <g className="wave" opacity={0.35} fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round">
+          {[[30, 40], [220, 30], [150, 190], [20, 420], [300, 330], [140, 460], [250, 470], [180, 210], [40, 160]].map(([x, y], i) => (
+            <path key={i} d={`M${x} ${y} q6 -5 12 0 t12 0`} />
+          ))}
+        </g>
+        <g fill="#fff" opacity={0.85}>
+          <ellipse cx={180} cy={26} rx={22} ry={8} />
+          <ellipse cx={196} cy={22} rx={14} ry={8} />
+          <ellipse cx={30} cy={H - 30} rx={16} ry={6} />
+        </g>
       </g>
-      <g fill="#fff" opacity={0.85}>
-        <ellipse cx={180} cy={28} rx={22} ry={8} />
-        <ellipse cx={196} cy={24} rx={14} ry={8} />
-        <ellipse cx={40} cy={200} rx={16} ry={6} />
-      </g>
-      <path d={PATH} fill="none" stroke="#FFFFFF" strokeWidth={4} strokeDasharray="2 11" strokeLinecap="round" opacity={0.95} />
 
-      {ISLANDS.map((isl) => {
+      {shown.map((isl, i) => {
+        const [x, y] = pos(i)
         const active = isl.id === current
         return (
           <g
             key={isl.id}
-            transform={`translate(${isl.x} ${isl.y})`}
+            transform={`translate(${x} ${y})`}
             role="button"
             tabIndex={0}
-            aria-label={`${isl.name}${isl.locked ? ', locked' : `, level ${isl.level}`}`}
+            aria-label={`${isl.name}, level ${isl.level}. Open quests`}
             onClick={() => onPick(isl)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -219,52 +238,38 @@ export function WorldMap({ current, onPick }: { current: IslandId; onPick: (i: I
               }
             }}
             style={{ cursor: 'pointer', outline: 'none' }}
-            className="group"
           >
             <ellipse cx={0} cy={10} rx={50} ry={22} fill="#1F5FB8" opacity={0.35} />
             <ellipse cx={0} cy={4} rx={50} ry={22} fill="#FFE3A3" stroke="#17153A" strokeWidth={2} />
-            <ellipse cx={0} cy={-1} rx={42} ry={17} fill={isl.locked ? '#B9C2D6' : 'url(#isl-grass)'} />
-            <g opacity={isl.locked ? 0.45 : 1}>
-              <Landmark id={isl.id} />
-            </g>
+            <ellipse cx={0} cy={-1} rx={42} ry={17} fill="url(#isl-grass)" />
+            <Landmark id={isl.id} />
             {active && <ellipse cx={0} cy={4} rx={56} ry={27} fill="none" stroke="#FFC93C" strokeWidth={3} strokeDasharray="6 5" />}
             <g transform="translate(0 34)">
-              <rect x={-52} y={-11} width={104} height={22} rx={11} fill="#17153A" opacity={0.92} />
+              <rect x={-54} y={-11} width={108} height={22} rx={11} fill="#17153A" opacity={0.92} />
               <text x={0} y={4.5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#fff" fontFamily="Fredoka Variable, sans-serif">
                 {isl.name}
               </text>
             </g>
-            {isl.locked ? (
-              <g transform="translate(38 -26)">
-                <circle r={12} fill="#17153A" />
-                <foreignObject x={-7} y={-7} width={14} height={14}>
-                  <Lock size={14} color="#fff" />
-                </foreignObject>
-              </g>
-            ) : (
-              <g transform="translate(40 -24)">
-                <circle r={12} fill="#FFC93C" stroke="#17153A" strokeWidth={2} />
-                <text y={4.5} textAnchor="middle" fontSize={12} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif">
-                  {isl.level}
-                </text>
-              </g>
-            )}
+            <g transform="translate(40 -24)">
+              <circle r={12} fill="#FFC93C" stroke="#17153A" strokeWidth={2} />
+              <text y={4.5} textAnchor="middle" fontSize={12} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif">
+                {isl.level}
+              </text>
+            </g>
           </g>
         )
       })}
 
-      <motion.g
-        initial={{ y: -6 }}
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <g transform={`translate(${ISLANDS.find((i) => i.id === current)!.x - 70} ${ISLANDS.find((i) => i.id === current)!.y - 58})`}>
-          <circle cx={20} cy={20} r={21} fill="#fff" stroke="#17153A" strokeWidth={2} />
-          <foreignObject x={2} y={2} width={36} height={36}>
-            <Buddy className="h-9 w-9" />
-          </foreignObject>
-        </g>
-      </motion.g>
+      {shown.length > 0 && (
+        <motion.g animate={{ y: [0, -6, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}>
+          <g transform={`translate(${bx - 72} ${by - 56})`}>
+            <circle cx={20} cy={20} r={21} fill="#fff" stroke="#17153A" strokeWidth={2} />
+            <foreignObject x={2} y={2} width={36} height={36}>
+              <Buddy className="h-9 w-9" />
+            </foreignObject>
+          </g>
+        </motion.g>
+      )}
     </svg>
   )
 }
