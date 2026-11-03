@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { Buddy, type Mood } from './art'
 
 /** The child's own avatar: either built from preset parts or drawn from a photo by the n8n workflow. */
 
@@ -110,4 +111,28 @@ export function ChildAvatar({ data, className, title }: { data?: ChildAvatarData
   if (data?.kind === 'photo')
     return <img src={data.src} alt={title ?? ''} className={`rounded-full object-cover ${className ?? ''}`} draggable={false} />
   return <AvatarFigure look={data?.kind === 'built' ? data.look : DEFAULT_LOOK} className={className} title={title} />
+}
+
+/** The child's avatar and Nova side by side, like a team. Nova overlaps slightly in front. */
+export function BuddyDuo({
+  data,
+  mood = 'happy',
+  size = 'md',
+  name,
+}: {
+  data?: ChildAvatarData | null
+  mood?: Mood
+  size?: 'md' | 'lg'
+  name?: string
+}) {
+  const av = size === 'lg' ? 'h-24 w-24' : 'h-16 w-16'
+  const fox = size === 'lg' ? 'h-28 w-28 -ml-6' : 'h-[76px] w-[76px] -ml-5'
+  return (
+    <div className="flex shrink-0 items-end" role="img" aria-label={name ? `${name} and Nova` : 'You and Nova'}>
+      <span className={`${av} relative z-0 overflow-hidden rounded-full shadow-card ring-4 ring-paper`}>
+        <ChildAvatar data={data} className={av} />
+      </span>
+      <Buddy mood={mood} className={`float relative z-10 ${fox} drop-shadow-md`} />
+    </div>
+  )
 }

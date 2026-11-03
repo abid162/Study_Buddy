@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { BookOpen, Calculator, Check, Flame, Gem, Play, Sparkles, X } from 'lucide-react'
 import { CHILD, DAILY, islandById, type Island, type IslandId, type Quest } from '../data/world'
-import { Buddy, Photo, WorldMap } from '../components/art'
+import { Photo, WorldMap } from '../components/art'
 import { useProfile } from '../data/profile'
-import { ChildAvatar } from '../components/avatar'
+import { BuddyDuo, ChildAvatar } from '../components/avatar'
 
 function greeting() {
   const h = new Date().getHours()
@@ -150,7 +150,7 @@ export function Home({ onPlay }: { onPlay: (island: IslandId) => void }) {
         <aside className="grid gap-6 lg:sticky lg:top-6">
           {/* buddy tip */}
           <section className="card flex items-center gap-4 p-5" aria-label="Message from Nova">
-            <Buddy mood="wink" className="float h-20 w-20 shrink-0" />
+            <BuddyDuo data={profile?.avatar} mood="wink" name={name} />
             <div>
               <p className="font-display text-lg font-semibold">Nova says</p>
               <p className="text-ink-soft">{`Ready, ${name}? ${quest.title} in ${featured.name} is waiting for you.`}</p>

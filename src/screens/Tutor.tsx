@@ -4,7 +4,7 @@ import { ArrowLeft, Gem, Image as ImageIcon, Lightbulb, RefreshCw, SendHorizonta
 import { Buddy, Photo, type Mood } from '../components/art'
 import { CHILD, islandById, type IslandId, type ProblemSpec } from '../data/world'
 import { useProfile } from '../data/profile'
-import { ChildAvatar } from '../components/avatar'
+import { BuddyDuo, ChildAvatar } from '../components/avatar'
 import { FOOTBALL_STARS, WRESTLING_STARS, type Star } from '../data/stars'
 
 /* ---------------- scripted problems (answers checked in code, never by AI) ---------------- */
@@ -513,8 +513,8 @@ export function Tutor({ island: islandId, onExit }: { island: IslandId; onExit: 
         {/* side panel (tablet landscape and desktop) */}
         <aside className="hidden w-[300px] shrink-0 flex-col gap-5 lg:flex" aria-label="Quest progress">
           <div className="card grid place-items-center p-6 text-center">
-            <Buddy mood={solved ? 'cheer' : hint > 0 ? 'think' : 'happy'} className="float h-32 w-32" />
-            <p className="mt-2 font-display text-xl font-semibold">Nova</p>
+            <BuddyDuo data={profile?.avatar} mood={solved ? 'cheer' : hint > 0 ? 'think' : 'happy'} size="lg" name={childName} />
+            <p className="mt-3 font-display text-xl font-semibold">{`${childName} & Nova`}</p>
             <p className="text-ink-soft">{solved ? 'You did it!' : hint > 0 ? 'Thinking it through with you.' : 'Here if you need a hint.'}</p>
           </div>
           <div className="card p-5">

@@ -26,7 +26,7 @@ A visually impressive demo link to win the client's confidence. It must work on 
 ## What's built
 - **Passcode screen:** night sky, Nova, "Enter the world".
 - **Child intake:** Nova asks for the child's first name (validated and tidied, so "mary-jane o'neil" becomes "Mary-Jane O'Neil") and school year (4, 5 or 6), then the child picks 1 to 6 worlds, with a "Pick all" option. Kept for the browser session; "Not [name]? Switch explorer" on Home restarts it. The name and year appear across Home and the tutor.
-- **Avatar (intake step 3):** "Build it" (skin, 6 hairstyles, hair colour, top, extras including glasses, cap, headphones and headscarf, plus "Surprise me") or "Use a photo". The photo route needs a parent/carer consent tick, downsizes the photo on the device, sends it to n8n, and shows the returned cartoon ("Try another photo" / "Let's go!"); errors show a friendly message and building is always available. "Skip for now" uses a default avatar. The avatar shows on Home and next to the child's tutor messages.
+- **Avatar (intake step 3):** "Build it" (skin, 6 hairstyles, hair colour, top, extras including glasses, cap, headphones and headscarf, plus "Surprise me") or "Use a photo". The photo route needs a parent/carer consent tick, downsizes the photo on the device, sends it to n8n, and shows the returned cartoon ("Try another photo" / "Let's go!"); errors show a friendly message and building is always available. "Skip for now" uses a default avatar. The avatar shows on Home, next to the child's tutor messages, and beside Nova as a pair (`BuddyDuo`) in the Home "Nova says" card and the tutor side panel ("[name] & Nova").
 - **App shell:** bottom tab bar on phones (World, Tutor, Scan, Read, Grown-ups); side rail at 1024px and wider.
 - **Child home:** greeting, streak, gems and level bar; "Today's quest" card from the child's first picked world; illustrated world map showing only the picked worlds (it re-lays itself for 1 to 6, with a floating buddy marker); world sheet with photo, level, stars and quests; Nova tip; daily missions; Maths and English progress.
 - **Six worlds, all playable:** Football Stadium (Penalty Shootout), Wrestling Arena (Title Belt Tour), Music Stage (Sold-out Show), Story Forest (The Lost Map), Brick City (Dream Bedroom), Space Station (Fuel the Rocket).
@@ -40,6 +40,8 @@ A visually impressive demo link to win the client's confidence. It must work on 
 - Flow: Webhook → "Photo Looks Valid?" (present and under ~5 MB) → Convert to File → OpenAI image edit with **gpt-image-2**, quality medium, 1024×1024, credential **"OpenAi c2 account"** → Respond with the image.
 - Privacy: execution saving is off (success, error, manual and progress), so photos and avatars are not kept in n8n. The app keeps only a 320px copy of the cartoon in the browser session. The two test runs used a drawn test face, not a real child.
 - Notes: takes about a minute per avatar; each one is a paid OpenAI image call on the c2 account. The webhook is public (anyone with the URL could call it), so add a shared-secret check before wider use. `input_fidelity` is not supported by gpt-image-2 and was removed. Override the URL with `VITE_AVATAR_WEBHOOK_URL` if needed.
+
+- Fixed: Nova's fur gradient used a fixed SVG id, so on phones (where the sidebar copy is hidden) other Novas rendered pale. Each Nova now gets a unique id.
 
 ## Still to build
 1. Onboarding extras: parent/guardian setup step, buddy picker (3 to 4 presets), session length, and a way to change picked worlds or the avatar later.

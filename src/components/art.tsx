@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Star } from 'lucide-react'
 import { ISLANDS, photoUrl, type Island, type IslandId } from '../data/world'
@@ -8,6 +8,7 @@ import { ISLANDS, photoUrl, type Island, type IslandId } from '../data/world'
 export type Mood = 'happy' | 'think' | 'cheer' | 'wink'
 
 export function Buddy({ mood = 'happy', className, title }: { mood?: Mood; className?: string; title?: string }) {
+  const fur = `nova-fur-${useId().replace(/:/g, '')}`
   const eyes =
     mood === 'cheer' ? (
       <g fill="none" stroke="#17153A" strokeWidth={4.5} strokeLinecap="round">
@@ -39,20 +40,20 @@ export function Buddy({ mood = 'happy', className, title }: { mood?: Mood; class
   return (
     <svg viewBox="0 0 120 120" className={className} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
       <defs>
-        <radialGradient id="nova-fur" cx="40%" cy="30%" r="75%">
+        <radialGradient id={fur} cx="40%" cy="30%" r="75%">
           <stop offset="0%" stopColor="#FFAE5C" />
           <stop offset="100%" stopColor="#F2701F" />
         </radialGradient>
       </defs>
       <path d="M86 98 C112 96 116 68 104 56 C112 78 98 90 82 88 Z" fill="#F2701F" />
       <path d="M100 66 C108 74 106 86 98 90 C102 82 102 74 100 66 Z" fill="#FFF4E6" />
-      <ellipse cx={60} cy={102} rx={28} ry={16} fill="url(#nova-fur)" />
+      <ellipse cx={60} cy={102} rx={28} ry={16} fill={`url(#${fur})`} />
       <ellipse cx={60} cy={106} rx={14} ry={9} fill="#FFF4E6" />
-      <path d="M24 44 L30 10 L52 32 Z" fill="url(#nova-fur)" />
-      <path d="M96 44 L90 10 L68 32 Z" fill="url(#nova-fur)" />
+      <path d="M24 44 L30 10 L52 32 Z" fill={`url(#${fur})`} />
+      <path d="M96 44 L90 10 L68 32 Z" fill={`url(#${fur})`} />
       <path d="M30 38 L33 19 L45 31 Z" fill="#FFC2B0" />
       <path d="M90 38 L87 19 L75 31 Z" fill="#FFC2B0" />
-      <circle cx={60} cy={60} r={36} fill="url(#nova-fur)" />
+      <circle cx={60} cy={60} r={36} fill={`url(#${fur})`} />
       <path d="M28 66 C34 92 86 92 92 66 C84 74 72 70 60 72 C48 70 36 74 28 66 Z" fill="#FFF4E6" />
       {eyes}
       <ellipse cx={60} cy={70} rx={5} ry={3.6} fill="#17153A" />
