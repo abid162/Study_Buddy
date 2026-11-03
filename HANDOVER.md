@@ -16,7 +16,8 @@ A visually impressive, phone/tablet-friendly demo link (Netlify) to win the clie
 
 ## Built in preview round 1
 - Child intake (after the passcode): Nova asks for the child's first name (validated and tidied, e.g. "mary-jane o'neil" becomes "Mary-Jane O'Neil") and school year (4, 5 or 6), then the child picks anywhere from 1 to all 6 worlds (with a Pick all option). Saved for the browser session; "Not <name>? Switch explorer" on Home restarts it. The name and year appear on Home, in the quest card and in Nova's tutor messages.
-- Worlds follow the child's picks: only picked worlds appear on the map (layout adapts to 1 to 6), Today's quest comes from the first pick, and there are no stages or locks, so every picked world opens straight away. Each world has its own playable quest with two themed fraction problems (football, wrestling, concert, story, bricks, space); answers, hints and mistake messages are generated and checked in code (`makeProblem` in Tutor.tsx).
+- Worlds follow the child's picks: only picked worlds appear on the map (layout adapts to 1 to 6), Today's quest comes from the first pick, and there are no stages or locks, so every picked world opens straight away. Each world has its own playable 8-step quest of themed fraction problems (halves, thirds, quarters and fifths, including unit fractions; 48 in total) (football, wrestling, concert, story, bricks, space); answers, hints and mistake messages are generated and checked in code (`makeProblem` in Tutor.tsx).
+- Star cast: Football and Wrestling questions star named characters (e.g. "Leo Santos takes 20 penalties... He scores three quarters"), with a star card (initials, name, nickname, role) on each question. The cast lives in one editable file, `src/data/stars.ts` (4 footballers, 4 wrestlers; name, nickname, he/she, role). Changing a name there updates every question, pronouns included. Shipped with invented characters; Claude will not write real named people into fictional questions, so swapping in real names is the team's decision and edit (check with the client first; many wrestling ring names are WWE trademarks).
 - Passcode screen (night sky, Nova, "Enter the world").
 - App shell: bottom tab bar on phones (World, Tutor, Scan, Read, Grown-ups); side rail at 1024px and wider.
 - Child home: greeting, streak, gems, level/XP bar; "Today's quest" hero card with photo and step progress; illustrated world map with 6 islands (Football Stadium, Wrestling Arena, Music Stage, Story Forest, Brick City, no locks, no stage path) showing only the child's picks, with a floating buddy marker; island sheet with photo, level, stars and quest list; Nova tip card; daily missions; Maths and English progress cards.
@@ -35,7 +36,7 @@ A visually impressive, phone/tablet-friendly demo link (Netlify) to win the clie
 ## Tech
 React 19, TypeScript, Vite 6, Tailwind 3, framer-motion 12.23.24 (pinned with motion-dom 12.23.23 and motion-utils 12.23.6; mismatched versions break the build), lucide-react 0.460. Fonts: Fredoka (display) and Atkinson Hyperlegible Next (body), self-hosted via Fontsource.
 
-Files: `src/App.tsx` (gate, intake, tabs), `src/data/profile.tsx` (child profile: name, year, interests; session storage), `src/screens/Onboarding.tsx` (intake), `src/components/shell.tsx` (tab bar and rail), `src/components/art.tsx` (Nova buddy, Photo with fallback, island landmarks, WorldMap), `src/data/world.ts` (islands, quests, child profile, photo IDs and credits), `src/screens/Home.tsx`, `src/screens/Tutor.tsx` (scripted problems in PROBLEMS), `src/screens/Gate.tsx`, `src/screens/Soon.tsx`.
+Files: `src/App.tsx` (gate, intake, tabs), `src/data/profile.tsx` (child profile: name, year, interests; session storage), `src/screens/Onboarding.tsx` (intake), `src/components/shell.tsx` (tab bar and rail), `src/components/art.tsx` (Nova buddy, Photo with fallback, island landmarks, WorldMap), `src/data/world.ts` (islands, quests, child profile, photo IDs and credits), `src/data/stars.ts` (editable star cast), `src/screens/Home.tsx`, `src/screens/Tutor.tsx` (scripted problems in PROBLEMS), `src/screens/Gate.tsx`, `src/screens/Soon.tsx`.
 
 ## Photos (Unsplash License)
 Football: photo-1679391029864-d46f366a456b (Howard Bouchevereau). Wrestling: photo-1443683263937-3e377546e8a8 (Martin Martz). Music: photo-1768053921689-1bc09db904c9 (Nicolás Flor). Space: photo-1541185933-ef5d8ed016c2 (SpaceX). Bricks and Story IDs are unverified; if they fail, the Photo component shows a coloured fallback, so nothing breaks.
@@ -46,7 +47,7 @@ Unzip over the local repo folder (delete the old `src` first so no stale files r
 $env:Path += ";C:\Program Files\Git\cmd;$env:LOCALAPPDATA\Programs\Git\cmd"
 cd "C:\Users\HamzaAbid\OneDrive - Cleartwo LTD\Desktop\New folder (2)"
 git add -A
-git commit -m "Worlds follow picks, no locks, every world playable"
+git commit -m "Star cast in football and wrestling questions"
 git push
 ```
 Netlify redeploys automatically.

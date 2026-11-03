@@ -4,6 +4,7 @@ import { ArrowLeft, Gem, Image as ImageIcon, Lightbulb, RefreshCw, SendHorizonta
 import { Buddy, Photo, type Mood } from '../components/art'
 import { CHILD, islandById, type IslandId, type ProblemSpec } from '../data/world'
 import { useProfile } from '../data/profile'
+import { FOOTBALL_STARS, WRESTLING_STARS, type Star } from '../data/stars'
 
 /* ---------------- scripted problems (answers checked in code, never by AI) ---------------- */
 
@@ -21,20 +22,42 @@ interface Problem {
   hints: [string, string, string]
   differently: string
   wrong: Record<number, string>
+  star?: Star
 }
 
-const FRAC: Record<number, [string, string]> = { 2: ['half', 'halves'], 3: ['third', 'thirds'], 4: ['quarter', 'quarters'] }
+const FRAC: Record<number, [string, string]> = { 2: ['half', 'halves'], 3: ['third', 'thirds'], 4: ['quarter', 'quarters'], 5: ['fifth', 'fifths'] }
 const WORD = ['zero', 'one', 'two', 'three', 'four']
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 
 /** Builds a full problem (answer, hints, mistake messages) from a themed spec. Maths is computed here, not written by hand. */
-export function makeProblem(spec: ProblemSpec, id: string, step: number): Problem {
+const CAST: Partial<Record<IslandId, Star[]>> = { football: FOOTBALL_STARS, wrestling: WRESTLING_STARS }
+
+/** Fill {star}, {He}/{he}, {His}/{his}, {Him}/{him} with the chosen star. */
+function cast(text: string, star?: Star) {
+  if (!star) return text
+  const he = star.pronoun === 'she' ? 'she' : 'he'
+  const his = star.pronoun === 'she' ? 'her' : 'his'
+  const him = star.pronoun === 'she' ? 'her' : 'him'
+  return text
+    .replace(/\{star\}/g, star.name)
+    .replace(/\{He\}/g, cap(he))
+    .replace(/\{he\}/g, he)
+    .replace(/\{His\}/g, cap(his))
+    .replace(/\{his\}/g, his)
+    .replace(/\{Him\}/g, cap(him))
+    .replace(/\{him\}/g, him)
+}
+
+export function makeProblem(spec: ProblemSpec, id: string, step: number, island?: IslandId): Problem {
   const { total, groups, take, noun } = spec
+  const list = island ? CAST[island] : undefined
+  const star = list && spec.star !== undefined ? list[spec.star % list.length] : undefined
   const per = total / groups
   const frac = `${WORD[take]} ${take === 1 ? FRAC[groups][0] : FRAC[groups][1]}`
   const answer = per * take
   const wrong: Record<number, string> = {
     [per]: `That's one ${FRAC[groups][0]}: the size of one group. ${cap(frac)} means ${WORD[take]} of the groups.`,
+    [per * (take + 1)]: `That's one group too many. ${cap(frac)} means exactly ${WORD[take]} ${take === 1 ? 'group' : 'groups'}.`,
     [total * take]: `That's ${total} × ${take}. Split into ${groups} equal groups first, then take ${take} of them.`,
     [total * groups]: `That's ${total} × ${groups}. Sharing into ${groups} groups makes the answer smaller, not bigger.`,
     [total + take]: `That's ${total} + ${take}. A fraction of an amount means sharing into equal groups.`,
@@ -44,8 +67,8 @@ export function makeProblem(spec: ProblemSpec, id: string, step: number): Proble
   return {
     id,
     step,
-    scene: spec.scene,
-    ask: spec.ask.replace('{frac}', frac).replace('{Frac}', cap(frac)),
+    scene: cast(spec.scene, star),
+    ask: cast(spec.ask.replace('{frac}', frac).replace('{Frac}', cap(frac)), star),
     total,
     groups,
     take,
@@ -53,12 +76,13 @@ export function makeProblem(spec: ProblemSpec, id: string, step: number): Proble
     noun,
     answer,
     hints: [
-      `${cap(frac)} means: split the ${total} ${noun} into ${groups} equal groups, then count ${WORD[take]} of the groups.`,
+      `${cap(frac)} means: split the ${total} ${noun} into ${groups} equal groups, then count ${take === 1 ? 'just one group' : `${WORD[take]} of the groups`}.`,
       `Each group has ${total} ÷ ${groups} ${noun}. How many is that?`,
-      `Each group has ${per} ${noun}. ${cap(WORD[take])} groups is ${per} × ${take}.`,
+      take === 1 ? `Each group has ${per} ${noun}, and you only need one group.` : `Each group has ${per} ${noun}. ${cap(WORD[take])} groups is ${per} × ${take}.`,
     ],
-    differently: `Imagine ${groups} friends share ${total} ${noun} equally, so everyone gets the same. ${cap(frac)} is what ${WORD[take]} of those friends have together.`,
+    differently: `Imagine ${groups} friends share ${total} ${noun} equally, so everyone gets the same. ${cap(frac)} is what ${take === 1 ? 'one friend gets' : `${WORD[take]} of those friends have together`}.`,
     wrong,
+    star,
   }
 }
 
@@ -107,7 +131,7 @@ function GroupVisual({ p, grouped, highlight, island }: { p: Problem; grouped: b
     )
   }
   return (
-    <div className={`grid gap-2 ${p.groups === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`} aria-label={`${p.total} footballs in ${p.groups} groups of ${per}`}>
+    <div className={`grid gap-2 ${p.groups === 2 ? 'grid-cols-2' : p.groups === 4 ? 'grid-cols-2 sm:grid-cols-4' : p.groups === 5 ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-3'}`} aria-label={`${p.total} footballs in ${p.groups} groups of ${per}`}>
       {Array.from({ length: p.groups }, (_, g) => {
         const lit = highlight && g < p.take
         return (
@@ -189,7 +213,7 @@ function BuddyBubble({ children, mood = 'happy' }: { children: ReactNode; mood?:
 export function Tutor({ island: islandId, onExit }: { island: IslandId; onExit: () => void }) {
   const island = islandById(islandId)
   const quest = island.quests.find((q) => q.playable) ?? island.quests[0]
-  const PROBLEMS = useRef(island.problems.map((sp, i) => makeProblem(sp, `${island.id}-${i}`, quest.done + 1 + i))).current
+  const PROBLEMS = useRef(island.problems.map((sp, i) => makeProblem(sp, `${island.id}-${i}`, quest.done + 1 + i, island.id))).current
   const [pIndex, setPIndex] = useState(0)
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [typing, setTyping] = useState(false)
@@ -368,6 +392,24 @@ export function Tutor({ island: islandId, onExit }: { island: IslandId; onExit: 
                         </span>
                       </div>
                       <div className="p-5">
+                        {m.problem.star && (
+                          <p className="mb-3 flex items-center gap-2.5">
+                            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-night font-display text-sm font-semibold text-sun">
+                              {m.problem.star.name
+                                .split(' ')
+                                .map((w) => w[0])
+                                .join('')
+                                .slice(0, 2)}
+                            </span>
+                            <span className="min-w-0 leading-tight">
+                              <span className="block font-display font-semibold">
+                                {m.problem.star.name}
+                                {m.problem.star.nickname && <span className="font-sans font-normal text-ink-soft"> “{m.problem.star.nickname}”</span>}
+                              </span>
+                              <span className="block text-sm text-ink-soft">{m.problem.star.role}</span>
+                            </span>
+                          </p>
+                        )}
                         <p className="text-lg leading-snug">{m.problem.scene}</p>
                         <p className="mt-1 font-display text-xl font-semibold leading-snug sm:text-2xl">{m.problem.ask}</p>
                         <div className="mt-4">
@@ -384,8 +426,8 @@ export function Tutor({ island: islandId, onExit }: { island: IslandId; onExit: 
                           <Trophy size={28} aria-hidden />
                         </span>
                         <div>
-                          <p className="font-display text-xl font-semibold">Step complete</p>
-                          <p className="text-white/80">+20 gems. Nova is proud of you.</p>
+                          <p className="font-display text-xl font-semibold">{m.last ? `${quest.title} complete!` : 'Step complete'}</p>
+                          <p className="text-white/80">{m.last ? `All ${PROBLEMS.length} steps done. +20 gems and a new star.` : '+20 gems. Nova is proud of you.'}</p>
                         </div>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-3">
@@ -451,7 +493,7 @@ export function Tutor({ island: islandId, onExit }: { island: IslandId; onExit: 
                   onChange={(e) => setValue(e.target.value.slice(0, 8))}
                   inputMode="decimal"
                   autoComplete="off"
-                  placeholder={solved ? 'Solved! Tap Next step above' : `Type how many ${p.unit}`}
+                  placeholder={solved ? (pIndex === PROBLEMS.length - 1 ? 'Quest complete! Tap Back to your world' : 'Solved! Tap Next step above') : `Type how many ${p.unit}`}
                   disabled={solved}
                   className="min-h-[54px] min-w-0 flex-1 rounded-2xl border-2 border-mist-deep bg-paper px-4 text-lg font-bold text-ink placeholder:font-normal placeholder:text-ink-faint focus:border-grape focus:outline-none disabled:bg-mist"
                 />
