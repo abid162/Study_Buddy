@@ -202,13 +202,6 @@ export const ISLANDS: Island[] = [
   },
 ]
 
-/** Worlds that can star the child's own hero, with the invented star used if they skip. */
-export const HERO_WORLDS = {
-  football: { ask: 'Who’s your favourite footballer?', fallback: 'Leo Santos', label: 'footballer' },
-  wrestling: { ask: 'Who’s your favourite wrestler?', fallback: 'Titan Torres', label: 'wrestler' },
-} as const
-export type HeroWorld = keyof typeof HERO_WORLDS
-
 export const islandById = (id: IslandId) => ISLANDS.find((i) => i.id === id)!
 
 export const CHILD = {

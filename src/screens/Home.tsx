@@ -4,6 +4,7 @@ import { BookOpen, Calculator, Check, Flame, Gem, Play, Sparkles, X } from 'luci
 import { CHILD, DAILY, islandById, type Island, type IslandId, type Quest } from '../data/world'
 import { Buddy, Photo, WorldMap } from '../components/art'
 import { useProfile } from '../data/profile'
+import { ChildAvatar } from '../components/avatar'
 
 function greeting() {
   const h = new Date().getHours()
@@ -50,8 +51,8 @@ export function Home({ onPlay }: { onPlay: (island: IslandId) => void }) {
         <div className="pointer-events-none absolute -left-10 top-10 h-40 w-40 rounded-full bg-sea/30 blur-3xl" aria-hidden />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-night-soft ring-2 ring-white/15">
-              <Buddy className="h-12 w-12" />
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full ring-4 ring-white/20">
+              <ChildAvatar data={profile?.avatar} className="h-16 w-16" title={`${name}'s avatar`} />
             </div>
             <div>
               <p className="text-sm text-white/70">{greeting()},</p>

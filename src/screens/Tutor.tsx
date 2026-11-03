@@ -4,6 +4,7 @@ import { ArrowLeft, Gem, Image as ImageIcon, Lightbulb, RefreshCw, SendHorizonta
 import { Buddy, Photo, type Mood } from '../components/art'
 import { CHILD, islandById, type IslandId, type ProblemSpec } from '../data/world'
 import { useProfile } from '../data/profile'
+import { ChildAvatar } from '../components/avatar'
 import { FOOTBALL_STARS, WRESTLING_STARS, type Star } from '../data/stars'
 
 /* ---------------- scripted problems (answers checked in code, never by AI) ---------------- */
@@ -370,8 +371,11 @@ export function Tutor({ island: islandId, onExit }: { island: IslandId; onExit: 
                 <motion.div key={m.id} initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}>
                   {m.from === 'buddy' && <BuddyBubble mood={m.mood}>{m.text}</BuddyBubble>}
                   {m.from === 'child' && (
-                    <div className="flex justify-end">
-                      <div className="max-w-[80%] rounded-3xl rounded-br-lg bg-grape px-4 py-3 font-bold text-white shadow-card">{m.text}</div>
+                    <div className="flex items-end justify-end gap-2.5">
+                      <div className="max-w-[78%] rounded-3xl rounded-br-lg bg-grape px-4 py-3 font-bold text-white shadow-card">{m.text}</div>
+                      <span className="h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-card">
+                        <ChildAvatar data={profile?.avatar} className="h-10 w-10" />
+                      </span>
                     </div>
                   )}
                   {m.from === 'hint' && (

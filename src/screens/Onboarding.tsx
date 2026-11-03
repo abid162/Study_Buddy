@@ -4,6 +4,8 @@ import { ArrowLeft, Check } from 'lucide-react'
 import { Buddy, Photo, type Mood } from '../components/art'
 import { ISLANDS, type IslandId } from '../data/world'
 import { NAME_PATTERN, tidyName, useProfile, type Profile } from '../data/profile'
+import { AvatarStep } from './AvatarStep'
+import type { ChildAvatarData } from '../components/avatar'
 
 const YEARS: { y: Profile['year']; age: string }[] = [
   { y: 4, age: 'Age 8 to 9' },
@@ -29,7 +31,7 @@ function Speech({ children, mood = 'happy' }: { children: string; mood?: Mood })
 
 export function Onboarding() {
   const { profile, save } = useProfile()
-  const [step, setStep] = useState<1 | 2>(1)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
   const [name, setName] = useState(profile?.name ?? '')
   const [year, setYear] = useState<Profile['year'] | null>(profile?.year ?? null)
   const [picks, setPicks] = useState<IslandId[]>(profile?.interests ?? [])
@@ -66,9 +68,9 @@ export function Onboarding() {
   const allPicked = picks.length === ISLANDS.length
   const toggleAll = () => setPicks(allPicked ? [] : ISLANDS.map((i) => i.id))
 
-  const finish = () => {
+  const finish = (avatar: ChildAvatarData) => {
     if (!picks.length || !year) return
-    save({ name: clean, year, interests: picks })
+    save({ name: clean, year, interests: picks, avatar })
   }
 
   return (
@@ -78,20 +80,25 @@ export function Onboarding() {
 
       <div className="relative mx-auto w-full max-w-[640px]">
         <div className="mb-6 flex items-center gap-3">
-          {step === 2 && (
-            <button type="button" onClick={() => setStep(1)} className="grid h-11 w-11 place-items-center rounded-full text-white hover:bg-white/10" aria-label="Back">
+          {step > 1 && (
+            <button type="button" onClick={() => setStep(step === 3 ? 2 : 1)} className="grid h-11 w-11 place-items-center rounded-full text-white hover:bg-white/10" aria-label="Back">
               <ArrowLeft size={24} aria-hidden />
             </button>
           )}
-          <div className="flex flex-1 gap-2" aria-label={`Step ${step} of 2`}>
-            {[1, 2].map((s) => (
+          <div className="flex flex-1 gap-2" aria-label={`Step ${step} of 3`}>
+            {[1, 2, 3].map((s) => (
               <span key={s} className={`h-2 flex-1 rounded-full ${s <= step ? 'bg-sun' : 'bg-white/20'}`} />
             ))}
           </div>
         </div>
 
         <AnimatePresence mode="wait">
-          {step === 1 ? (
+          {step === 3 ? (
+            <motion.div key="s3" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
+              <Speech mood="cheer">{`Last thing, ${clean}! Let’s make your avatar.`}</Speech>
+              <AvatarStep name={clean} initial={profile?.avatar} onBack={() => setStep(2)} onDone={finish} />
+            </motion.div>
+          ) : step === 1 ? (
             <motion.div key="s1" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
               <Speech mood="wink">Hi, I’m Nova! I’ll be your study buddy. What should I call you?</Speech>
               <form onSubmit={next} noValidate className="mt-4 rounded-4xl bg-paper p-6 shadow-pop sm:p-8">
@@ -197,8 +204,8 @@ export function Onboarding() {
                     )
                   })}
                 </ul>
-                <button type="button" className="btn btn-sun mt-6 w-full" disabled={!picks.length} onClick={finish}>
-                  {picks.length ? 'Let’s go!' : 'Pick at least one world'}
+                <button type="button" className="btn btn-sun mt-6 w-full" disabled={!picks.length} onClick={() => setStep(3)}>
+                  {picks.length ? 'Next: make your avatar' : 'Pick at least one world'}
                 </button>
               </div>
             </motion.div>

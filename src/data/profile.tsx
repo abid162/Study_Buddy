@@ -1,22 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { HERO_WORLDS, type HeroWorld, type IslandId } from './world'
+import type { IslandId } from './world'
+import type { ChildAvatarData } from '../components/avatar'
 
 export interface Profile {
   name: string
   year: 4 | 5 | 6
   interests: IslandId[]
-  /** child-typed favourite player per world, optional */
-  heroes?: Partial<Record<HeroWorld, string>>
+  avatar?: ChildAvatarData
 }
-
-/** The name that stars in a world's questions: the child's hero, or the invented fallback star. */
-export function heroFor(profile: Profile | null, world: IslandId): string | null {
-  if (world !== 'football' && world !== 'wrestling') return null
-  return profile?.heroes?.[world]?.trim() || HERO_WORLDS[world].fallback
-}
-
-/** Names for heroes allow letters (any language), spaces, hyphens, apostrophes and full stops, up to 24 characters. */
-export const HERO_PATTERN = /^[\p{L}][\p{L}' .-]{0,23}$/u
 
 const KEY = 'study-buddy-preview-profile'
 
