@@ -29,7 +29,7 @@ A visually impressive demo link to win the client's confidence. It must work on 
 - **Avatar (intake step 3):** "Build it" (skin, 6 hairstyles, hair colour, top, extras including glasses, cap, headphones and headscarf, plus "Surprise me") or "Use a photo". The photo route needs a parent/carer consent tick, downsizes the photo on the device, sends it to n8n, and shows the returned cartoon ("Try another photo" / "Let's go!"); errors show a friendly message and building is always available. "Skip for now" uses a default avatar. The avatar shows on Home, next to the child's tutor messages, and beside Nova as a pair (`BuddyDuo`) in the Home "Nova says" card and the tutor side panel ("[name] & Nova").
 - **App shell:** bottom tab bar on phones (World, Tutor, Scan, Read, Grown-ups); side rail at 1024px and wider.
 - **Child home:** greeting, streak, gems and level bar; "Today's quest" card from the child's first picked world; illustrated world map showing only the picked worlds (it re-lays itself for 1 to 6, with a floating buddy marker); world sheet with photo, level, stars and quests; Nova tip; daily missions; Maths and English progress.
-- **Six worlds, all playable:** Football Stadium (Penalty Shootout), Wrestling Arena (Title Belt Tour), Music Stage (Sold-out Show), Story Forest (The Lost Map), Brick City (Dream Bedroom), Space Station (Fuel the Rocket).
+- **Six worlds, all playable:** Football Stadium (Penalty Shootout), Wrestling (Title Belt Tour), Music Stage (Sold-out Show), Story Forest (The Lost Map), Brick City (Dream Bedroom), Space Station (Fuel the Rocket).
 - **AI tutor (scripted, the hero feature):** each quest is 8 themed fraction questions (halves, thirds, quarters and fifths, including unit fractions; 48 in total). Chat with Nova and a typing indicator; question card with photo and, for football and wrestling, a star card; a counting visual themed to the world that splits into equal groups and highlights the ones needed; 3-level hint ladder; quick actions (hint, picture, explain differently); specific mistake messages; confetti, +20 gems and "Step complete"; a "[quest] complete!" card after question 8. The maths, hints and mistake messages are generated and checked in code, never by AI.
 - **Scan, Read and Grown-ups tabs:** placeholder screens for now.
 - **Checks done:** clean production build; all 48 questions verified (whole-number answers, no mistake message matching a right answer, no broken text); a full 8-step quest played in the browser; flows tested with 1, 2 and 6 worlds; no sideways scrolling at 390px, 1180px and 1440px.
@@ -42,6 +42,8 @@ A visually impressive demo link to win the client's confidence. It must work on 
 - Notes: takes about a minute per avatar; each one is a paid OpenAI image call on the c2 account. The webhook is public (anyone with the URL could call it), so add a shared-secret check before wider use. `input_fidelity` is not supported by gpt-image-2 and was removed. Override the URL with `VITE_AVATAR_WEBHOOK_URL` if needed.
 
 - Fixed: Nova's fur gradient used a fixed SVG id, so on phones (where the sidebar copy is hidden) other Novas rendered pale. Each Nova now gets a unique id.
+
+- Founder feedback applied: football photo instead of the stadium, "Wrestling Arena" renamed "Wrestling", wrestling image replaced with the client-supplied one.
 
 ## Still to build
 1. Onboarding extras: parent/guardian setup step, buddy picker (3 to 4 presets), session length, and a way to change picked worlds or the avatar later.
@@ -72,7 +74,7 @@ React 19, TypeScript, Vite 6, Tailwind 3, lucide-react 0.460. framer-motion 12.2
 | `src/screens/Gate.tsx`, `src/screens/Soon.tsx` | Passcode screen, placeholder tabs |
 
 ## Photos (Unsplash License)
-Football: photo-1679391029864-d46f366a456b (Howard Bouchevereau). Wrestling: photo-1443683263937-3e377546e8a8 (Martin Martz). Music: photo-1768053921689-1bc09db904c9 (Nicolás Flor). Space: photo-1541185933-ef5d8ed016c2 (SpaceX). The Bricks and Story photo IDs are unverified; if they fail to load, a coloured fallback shows instead.
+Football: photo-1614632537423-1e6c2e7e0aab (football on grass, Janosch Jost). Wrestling: client-supplied image (founder's choice) stored at `public/worlds/wrestling.jpg`; it shows real WWE wrestlers and branding, so its usage rights are the client's to confirm before any public launch. Music: photo-1768053921689-1bc09db904c9 (Nicolás Flor). Space: photo-1541185933-ef5d8ed016c2 (SpaceX). The Bricks and Story photo IDs are unverified; if they fail to load, a coloured fallback shows instead.
 
 ## Updating the live site
 Edit or unzip files into the local repo folder (when replacing the whole app, delete the old `src` first), then in PowerShell:

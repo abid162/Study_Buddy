@@ -2,16 +2,19 @@ export type IslandId = 'football' | 'wrestling' | 'music' | 'story' | 'bricks' |
 
 /** Unsplash photos (free Unsplash License). No identifiable stars, no logos. */
 export const PHOTOS = {
-  football: { id: 'photo-1679391029864-d46f366a456b', credit: 'Howard Bouchevereau', page: 'https://unsplash.com/photos/yKHZ65nuEtE' },
-  wrestling: { id: 'photo-1443683263937-3e377546e8a8', credit: 'Martin Martz', page: 'https://unsplash.com/photos/1iHpSdiZyFA' },
+  football: { id: 'photo-1614632537423-1e6c2e7e0aab', credit: 'Janosch Jost', page: 'https://unsplash.com/photos/ZBZStqTOXFU' },
+  /** Supplied by the client (founder's choice). Stored with the app at public/worlds/wrestling.jpg. */
+  wrestling: { id: '', local: '/worlds/wrestling.jpg', credit: 'Supplied by client', page: '' },
   music: { id: 'photo-1768053921689-1bc09db904c9', credit: 'Nicolás Flor', page: 'https://unsplash.com/photos/gKgL1WlE5KM' },
   space: { id: 'photo-1541185933-ef5d8ed016c2', credit: 'SpaceX', page: 'https://unsplash.com/photos/Ptd-iTdrCJM' },
   bricks: { id: 'photo-1587654780291-39c9404d746b', credit: 'Unsplash', page: 'https://unsplash.com' },
   story: { id: 'photo-1512820790803-83ca734da794', credit: 'Unsplash', page: 'https://unsplash.com' },
 } as const
 
-export const photoUrl = (id: IslandId, w = 900) =>
-  `https://images.unsplash.com/${PHOTOS[id].id}?auto=format&fit=crop&w=${w}&q=70`
+export const photoUrl = (id: IslandId, w = 900) => {
+  const p: { id: string; local?: string } = PHOTOS[id]
+  return p.local ?? `https://images.unsplash.com/${p.id}?auto=format&fit=crop&w=${w}&q=70`
+}
 
 export interface Quest {
   id: string
@@ -82,7 +85,7 @@ export const ISLANDS: Island[] = [
   },
   {
     id: 'wrestling',
-    name: 'Wrestling Arena',
+    name: 'Wrestling',
     tagline: 'Title belts and big entrances',
     tint: ['#E2473A', '#8E1E2C'],
     x: 268,
