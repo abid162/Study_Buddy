@@ -2,7 +2,7 @@ export type IslandId = 'football' | 'wrestling' | 'music' | 'story' | 'bricks' |
 
 /** Unsplash photos (free Unsplash License). No identifiable stars, no logos. */
 export const PHOTOS = {
-  football: { id: 'photo-1614632537423-1e6c2e7e0aab', credit: 'Janosch Jost', page: 'https://unsplash.com/photos/ZBZStqTOXFU' },
+  football: { id: 'photo-1617144519956-bba853571334', credit: 'Ben Hershey', page: 'https://unsplash.com/photos/6NhmiPpy6y4' },
   /** Supplied by the client (founder's choice). Stored with the app at public/worlds/wrestling.jpg. */
   wrestling: { id: '', local: '/worlds/wrestling.jpg', credit: 'Supplied by client', page: '' },
   music: { id: 'photo-1768053921689-1bc09db904c9', credit: 'Nicolás Flor', page: 'https://unsplash.com/photos/gKgL1WlE5KM' },
@@ -60,7 +60,7 @@ export interface Island {
 export const ISLANDS: Island[] = [
   {
     id: 'football',
-    name: 'Football Stadium',
+    name: 'Football',
     tagline: 'Penalties, scores and league tables',
     tint: ['#1FA463', '#0B6B45'],
     x: 92,
