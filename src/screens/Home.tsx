@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { BookOpen, Calculator, Check, ChevronRight, Flame, Gem, Lock, Play, Sparkles, X } from 'lucide-react'
 import { CHILD, DAILY, islandById, type Island, type Quest } from '../data/world'
 import { Buddy, Photo, WorldMap } from '../components/art'
+import { useProfile } from '../data/profile'
 
 function greeting() {
   const h = new Date().getHours()
@@ -33,6 +34,10 @@ function StatChips() {
 
 export function Home({ onPlay }: { onPlay: () => void }) {
   const [sheet, setSheet] = useState<Island | null>(null)
+  const { profile, reset } = useProfile()
+  const name = profile?.name ?? 'Explorer'
+  const year = profile?.year ?? 5
+  const picks = (profile?.interests ?? []).map((id) => islandById(id).name)
   const quest = islandById('football').quests[0]
   const levelProgress = CHILD.xp / CHILD.xpNext
 
@@ -49,7 +54,10 @@ export function Home({ onPlay }: { onPlay: () => void }) {
             </div>
             <div>
               <p className="text-sm text-white/70">{greeting()},</p>
-              <h1 className="font-display text-[1.75rem] font-semibold leading-tight">{CHILD.name}</h1>
+              <h1 className="font-display text-[1.75rem] font-semibold leading-tight">{name}</h1>
+              <button type="button" onClick={reset} className="text-sm font-bold text-white/70 underline decoration-white/40 underline-offset-4 hover:text-white">
+                Not {name}? Switch explorer
+              </button>
             </div>
           </div>
           <div className="hidden sm:block">
@@ -94,7 +102,7 @@ export function Home({ onPlay }: { onPlay: () => void }) {
                   {quest.title}
                 </h2>
                 <p className="text-white/85">
-                  Football Stadium. {quest.skill}, Year {CHILD.year}.
+                  Football Stadium. {quest.skill}, Year {year}.
                 </p>
               </div>
             </div>
@@ -125,9 +133,11 @@ export function Home({ onPlay }: { onPlay: () => void }) {
                 <h2 id="world-title" className="font-display text-2xl font-semibold">
                   Your world
                 </h2>
-                <p className="text-ink-soft">Tap an island to see its quests.</p>
+                <p className="text-ink-soft">
+                  {picks.length ? `Your picks: ${picks.join(', ')}. ` : ''}Tap an island to see its quests.
+                </p>
               </div>
-              <span className="chip bg-mist text-ink-soft">5 of 6 open</span>
+              <span className="chip shrink-0 whitespace-nowrap bg-mist text-ink-soft">5 of 6 open</span>
             </div>
             <div className="mx-auto max-w-[560px]">
               <WorldMap current="football" onPick={setSheet} />
@@ -141,7 +151,7 @@ export function Home({ onPlay }: { onPlay: () => void }) {
             <Buddy mood="wink" className="float h-20 w-20 shrink-0" />
             <div>
               <p className="font-display text-lg font-semibold">Nova says</p>
-              <p className="text-ink-soft">You're 2 steps from finishing Penalty Shootout. Fancy beating your best time?</p>
+              <p className="text-ink-soft">{`Ready, ${name}? You're 2 steps from finishing Penalty Shootout.`}</p>
             </div>
           </section>
 

@@ -1,6 +1,6 @@
 # Study Buddy demo: handover (preview round 1)
 
-Last updated: 3 November 2026. Owner: Hamza (Cleartwo). Repo: https://github.com/abid162/Study_Buddy (branch main). Hosting: Netlify, auto-deploys from main (build `npm run build`, publish `dist`). Passcode: `buddy2026`.
+Last updated: 3 November 2026 (round 1 plus child intake). Owner: Hamza (Cleartwo). Repo: https://github.com/abid162/Study_Buddy (branch main). Hosting: Netlify, auto-deploys from main (build `npm run build`, publish `dist`). Passcode: `buddy2026`.
 
 ## Goal
 A visually impressive, phone/tablet-friendly demo link (Netlify) to win the client's confidence. Flows can be scripted with realistic data; full functionality comes later. Source brief: "Study Buddy: Adaptive AI EdTech Platform | Architecture, MVP Scope & Technical Blueprint" (Sehar, 19 Oct 2026).
@@ -15,6 +15,7 @@ A visually impressive, phone/tablet-friendly demo link (Netlify) to win the clie
 - Deployment: Netlify from GitHub. Lovable was dropped (workspace Git permissions blocked it).
 
 ## Built in preview round 1
+- Child intake (after the passcode): Nova asks for the child's first name (validated and tidied, e.g. "mary-jane o'neil" becomes "Mary-Jane O'Neil") and school year (4, 5 or 6), then the child picks up to 3 worlds. Saved for the browser session; "Not <name>? Switch explorer" on Home restarts it. The name and year appear on Home, in the quest card and in Nova's tutor messages.
 - Passcode screen (night sky, Nova, "Enter the world").
 - App shell: bottom tab bar on phones (World, Tutor, Scan, Read, Grown-ups); side rail at 1024px and wider.
 - Child home: greeting, streak, gems, level/XP bar; "Today's quest" hero card with photo and step progress; illustrated world map with 6 islands (Football Stadium, Wrestling Arena, Music Stage, Story Forest, Brick City, Space Station locked), dotted path and floating buddy marker; island sheet with photo, level, stars and quest list; Nova tip card; daily missions; Maths and English progress cards.
@@ -22,7 +23,7 @@ A visually impressive, phone/tablet-friendly demo link (Netlify) to win the clie
 - Scan, Read and Grown-ups tabs: placeholder screens ("Arriving in the next preview").
 
 ## Still to build (next rounds)
-1. Onboarding: parent setup, then child picks interests, buddy (3 to 4 presets) and session length.
+1. Onboarding extras: parent/guardian setup step, buddy picker (3 to 4 presets) and session length. Use the picked worlds to choose Today's quest.
 2. Homework scanner: camera view, scanning animation, extracted text, step-by-step feedback.
 3. Reading coach: passage, live waveform, word highlighting, encouraging feedback.
 4. Focus mode: timed session and break screen.
@@ -33,7 +34,7 @@ A visually impressive, phone/tablet-friendly demo link (Netlify) to win the clie
 ## Tech
 React 19, TypeScript, Vite 6, Tailwind 3, framer-motion 12.23.24 (pinned with motion-dom 12.23.23 and motion-utils 12.23.6; mismatched versions break the build), lucide-react 0.460. Fonts: Fredoka (display) and Atkinson Hyperlegible Next (body), self-hosted via Fontsource.
 
-Files: `src/App.tsx` (gate, tabs), `src/components/shell.tsx` (tab bar and rail), `src/components/art.tsx` (Nova buddy, Photo with fallback, island landmarks, WorldMap), `src/data/world.ts` (islands, quests, child profile, photo IDs and credits), `src/screens/Home.tsx`, `src/screens/Tutor.tsx` (scripted problems in PROBLEMS), `src/screens/Gate.tsx`, `src/screens/Soon.tsx`.
+Files: `src/App.tsx` (gate, intake, tabs), `src/data/profile.tsx` (child profile: name, year, interests; session storage), `src/screens/Onboarding.tsx` (intake), `src/components/shell.tsx` (tab bar and rail), `src/components/art.tsx` (Nova buddy, Photo with fallback, island landmarks, WorldMap), `src/data/world.ts` (islands, quests, child profile, photo IDs and credits), `src/screens/Home.tsx`, `src/screens/Tutor.tsx` (scripted problems in PROBLEMS), `src/screens/Gate.tsx`, `src/screens/Soon.tsx`.
 
 ## Photos (Unsplash License)
 Football: photo-1679391029864-d46f366a456b (Howard Bouchevereau). Wrestling: photo-1443683263937-3e377546e8a8 (Martin Martz). Music: photo-1768053921689-1bc09db904c9 (Nicolás Flor). Space: photo-1541185933-ef5d8ed016c2 (SpaceX). Bricks and Story IDs are unverified; if they fail, the Photo component shows a coloured fallback, so nothing breaks.
@@ -44,7 +45,7 @@ Unzip over the local repo folder (delete the old `src` first so no stale files r
 $env:Path += ";C:\Program Files\Git\cmd;$env:LOCALAPPDATA\Programs\Git\cmd"
 cd "C:\Users\HamzaAbid\OneDrive - Cleartwo LTD\Desktop\New folder (2)"
 git add -A
-git commit -m "Preview round 1: world map and AI tutor"
+git commit -m "Add child intake: name, year and worlds"
 git push
 ```
 Netlify redeploys automatically.

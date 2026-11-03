@@ -4,10 +4,21 @@ import { Gate } from './screens/Gate'
 import { Home } from './screens/Home'
 import { Tutor } from './screens/Tutor'
 import { Soon } from './screens/Soon'
+import { Onboarding } from './screens/Onboarding'
+import { ProfileProvider, useProfile } from './data/profile'
 
 const UNLOCK_KEY = 'study-buddy-preview-unlocked'
 
 export default function App() {
+  return (
+    <ProfileProvider>
+      <Root />
+    </ProfileProvider>
+  )
+}
+
+function Root() {
+  const { profile, ready } = useProfile()
   const [unlocked, setUnlocked] = useState(false)
   const [tab, setTab] = useState<Tab>('home')
   const [tutorKey, setTutorKey] = useState(0)
@@ -39,6 +50,9 @@ export default function App() {
         }}
       />
     )
+
+  if (!ready) return <div className="min-h-dvh bg-night" />
+  if (!profile) return <Onboarding />
 
   return (
     <Shell tab={tab} onTab={go} hideNav={tab === 'tutor'}>

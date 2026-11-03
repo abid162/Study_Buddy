@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, Gem, Image as ImageIcon, Lightbulb, RefreshCw, SendHorizontal, Sparkles, Trophy } from 'lucide-react'
 import { Buddy, Photo, type Mood } from '../components/art'
 import { CHILD } from '../data/world'
+import { useProfile } from '../data/profile'
 
 /* ---------------- scripted problems (answers checked in code, never by AI) ---------------- */
 
@@ -192,6 +193,9 @@ export function Tutor({ onExit }: { onExit: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const timers = useRef<number[]>([])
   const p = PROBLEMS[pIndex]
+  const { profile } = useProfile()
+  const childName = profile?.name ?? 'explorer'
+  const year = profile?.year ?? 5
 
   const say = useCallback((items: NewMsg[], gap = 650) => {
     items.forEach((m, i) => {
@@ -208,12 +212,12 @@ export function Tutor({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     const t = timers.current
     say([
-      { from: 'buddy', text: `Welcome back, ${CHILD.name}! Step 3 of Penalty Shootout. The crowd is waiting.`, mood: 'cheer' },
+      { from: 'buddy', text: `Welcome back, ${childName}! Step 3 of Penalty Shootout. The crowd is waiting.`, mood: 'cheer' },
       { from: 'card', problem: PROBLEMS[0] },
       { from: 'buddy', text: 'Type your answer below, or ask me for a hint. No rush.' },
     ])
     return () => t.forEach(clearTimeout)
-  }, [say])
+  }, [say, childName])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -357,7 +361,7 @@ export function Tutor({ onExit }: { onExit: () => void }) {
                         <div className="mt-4">
                           <GroupVisual p={m.problem} grouped={m.problem.id === p.id ? grouped : true} highlight={m.problem.id === p.id ? highlight : true} />
                         </div>
-                        <p className="mt-3 text-sm text-ink-soft">Year 5 maths: find non-unit fractions of amounts.</p>
+                        <p className="mt-3 text-sm text-ink-soft">Year {year} maths: find fractions of amounts.</p>
                       </div>
                     </article>
                   )}
