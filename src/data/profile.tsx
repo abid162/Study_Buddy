@@ -7,6 +7,8 @@ export interface Profile {
   year: 4 | 5 | 6
   interests: IslandId[]
   avatar?: ChildAvatarData
+  /** favourite Premier League club, for the football world */
+  team?: string
 }
 
 const KEY = 'study-buddy-preview-profile'

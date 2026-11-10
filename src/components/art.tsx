@@ -1,7 +1,8 @@
 import { useId, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Star } from 'lucide-react'
-import { ISLANDS, photoUrl, type Island, type IslandId } from '../data/world'
+import { ISLANDS, type Island, type IslandId } from '../data/world'
+import { picUrl, worldPic } from '../data/photos'
 
 /* ---------------- Nova, the study buddy (preset cartoon character) ---------------- */
 
@@ -66,22 +67,31 @@ export function Buddy({ mood = 'happy', className, title }: { mood?: Mood; class
 
 /* ---------------- Photo with illustrated fallback ---------------- */
 
-export function Photo({ island, alt, className, w = 900 }: { island: IslandId; alt: string; className?: string; w?: number }) {
-  const [failed, setFailed] = useState(false)
+/** A world photo. `n` picks a photo from the world's set (0 = cover). `credit` shows the photographer. */
+export function Photo({ island, alt, className, w = 900, n = 0, credit = false }: { island: IslandId; alt: string; className?: string; w?: number; n?: number; credit?: boolean }) {
+  const pic = worldPic(island, n)
+  const [failed, setFailed] = useState<string | null>(null)
   const tint = ISLANDS.find((i) => i.id === island)!.tint
+  const src = picUrl(pic, w)
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`} style={{ background: `linear-gradient(135deg, ${tint[0]}, ${tint[1]})` }}>
-      {!failed && (
+      {failed !== src && (
         <img
-          src={photoUrl(island, w)}
+          key={src}
+          src={src}
           alt={alt}
           loading="lazy"
           decoding="async"
-          onError={() => setFailed(true)}
+          onError={() => setFailed(src)}
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}
-      {failed && (
+      {credit && failed !== src && (
+        <span className="absolute right-2 top-2 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-bold text-white/85">
+          {pic.local ? pic.credit : `Photo: ${pic.credit} / Unsplash`}
+        </span>
+      )}
+      {failed === src && (
         <svg viewBox="0 0 200 100" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full opacity-30" aria-hidden>
           {Array.from({ length: 14 }, (_, i) => (
             <circle key={i} cx={(i * 37) % 200} cy={(i * 23) % 100} r={6 + (i % 4) * 5} fill="#fff" opacity={0.25} />
@@ -185,7 +195,7 @@ const SLOTS: Record<number, { h: number; at: [number, number][] }> = {
   6: { h: 480, at: [[92, 104], [268, 92], [278, 236], [86, 262], [176, 372], [292, 404]] },
 }
 
-export function WorldMap({ picks, current, onPick }: { picks: IslandId[]; current: IslandId; onPick: (i: Island) => void }) {
+export function WorldMap({ picks, current, onPick, levels = {} }: { picks: IslandId[]; current: IslandId; onPick: (i: Island) => void; levels?: Partial<Record<IslandId, number>> }) {
   const shown = picks.map((id) => ISLANDS.find((i) => i.id === id)!).filter(Boolean)
   const slot = SLOTS[Math.min(Math.max(shown.length, 1), 6)]
   const H = slot.h
@@ -230,7 +240,7 @@ export function WorldMap({ picks, current, onPick }: { picks: IslandId[]; curren
             transform={`translate(${x} ${y})`}
             role="button"
             tabIndex={0}
-            aria-label={`${isl.name}, level ${isl.level}. Open quests`}
+            aria-label={`${isl.name}, level ${levels[isl.id] ?? 1}. Open world`}
             onClick={() => onPick(isl)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -254,7 +264,7 @@ export function WorldMap({ picks, current, onPick }: { picks: IslandId[]; curren
             <g transform="translate(40 -24)">
               <circle r={12} fill="#FFC93C" stroke="#17153A" strokeWidth={2} />
               <text y={4.5} textAnchor="middle" fontSize={12} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif">
-                {isl.level}
+                {levels[isl.id] ?? 1}
               </text>
             </g>
           </g>
