@@ -62,14 +62,6 @@ function BigStars({ n }: { n: number }) {
 /* ---------------- helpers ---------------- */
 
 /** answer tiles: a colour and a letter each, so they are easy to tell apart and to talk about */
-const CHOICE = [
-  { main: '#7C5CFF', edge: '#5B3BE0', soft: '#F1ECFF' },
-  { main: '#3E8EF0', edge: '#2563C9', soft: '#E6F1FF' },
-  { main: '#17A873', edge: '#0F8A5F', soft: '#E2F8EE' },
-  { main: '#F0638F', edge: '#C2256E', soft: '#FFE9F2' },
-]
-
-
 const CAST: Partial<Record<IslandId, Star[]>> = STARS
 const starIn = (world: IslandId, text: string) => CAST[world]?.find((s) => text.includes(s.name))
 const textOf = (t: TutorQ) => (t.kind === 'maths' ? t.q.text : `${t.q.extract ?? ''} ${t.q.prompt}`)
@@ -544,28 +536,21 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
               </div>
               {isChoice && cur?.kind === 'english' && !solved ? (
                 <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Choose an answer">
-                  {(cur.q.options ?? []).map((o, oi) => {
-                    const c = CHOICE[oi % CHOICE.length]!
-                    return (
-                      <motion.button
-                        key={o}
-                        type="button"
-                        onClick={() => submit(o)}
-                        disabled={busy}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: oi * 0.05 }}
-                        whileTap={{ y: 3 }}
-                        className="flex min-h-[58px] items-center gap-3 whitespace-pre-line rounded-[20px] p-2 pr-4 text-left text-[1.0625rem] font-bold text-ink"
-                        style={{ background: c.soft, boxShadow: `inset 0 0 0 2.5px ${c.main}, 0 4px 0 ${c.edge}` }}
-                      >
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] font-display text-lg font-semibold text-white" style={{ background: c.edge, boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3)' }} aria-hidden>
-                          {'ABCDEF'[oi]}
-                        </span>
-                        <span className="min-w-0 flex-1">{o}</span>
-                      </motion.button>
-                    )
-                  })}
+                  {(cur.q.options ?? []).map((o, oi) => (
+                    <motion.button
+                      key={o}
+                      type="button"
+                      onClick={() => submit(o)}
+                      disabled={busy}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: oi * 0.05 }}
+                      whileTap={{ y: 3 }}
+                      className="min-h-[58px] whitespace-pre-line rounded-[20px] bg-paper px-4 py-3 text-left text-[1.0625rem] font-bold text-ink ring-2 ring-inset ring-mist-deep transition-colors hover:bg-grape-soft hover:ring-grape"
+                    >
+                      {o}
+                    </motion.button>
+                  ))}
                 </div>
               ) : (
                 <form onSubmit={onForm} className="flex items-end gap-2">
