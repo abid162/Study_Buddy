@@ -12,7 +12,7 @@ export function Grownups({ onHome }: { onHome: () => void }) {
       <section className="card flex flex-wrap items-center gap-5 p-6">
         <div className="relative h-24 w-24 shrink-0">
           <Buddy mood="think" className="h-24 w-24" />
-          <span className="absolute -right-1 bottom-0 grid h-10 w-10 place-items-center rounded-xl bg-sun text-ink shadow-pop">
+          <span className="tile absolute -right-1 bottom-0 h-10 w-10 !rounded-xl !text-ink" style={{ background: 'linear-gradient(180deg,#FFB08A,#FF7F5C)' }}>
             <Users size={20} aria-hidden />
           </span>
         </div>

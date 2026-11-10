@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, BookOpen, Calculator, Check, ChevronRight, Flame, Gem, Play, Shirt, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, BookOpen, Calculator, Check, ChevronRight, Flame, Gem, Map as MapIcon, Mic, Play, ScanLine, Shirt, Sparkles, Swords, Target, type LucideIcon } from 'lucide-react'
 import { CHILD, DAILY, islandById, type IslandId } from '../data/world'
 import { Photo, StageMap, WorldMap } from '../components/art'
+import { Bar, SkyScene } from '../components/scene'
 import { TeamPicker } from '../components/journey'
 import { STAGES, leagueTable, ordinal, stageInfo } from '../data/stages'
 import { useProfile } from '../data/profile'
@@ -16,16 +17,32 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
 }
 
-function Progress({ value, tone = 'sun' }: { value: number; tone?: 'sun' | 'mint' | 'grape' }) {
-  const color = tone === 'sun' ? 'bg-sun' : tone === 'mint' ? 'bg-mint' : 'bg-grape'
+const XP_PER_LEVEL = 500
+const rise = (i: number) => ({ initial: { opacity: 0, y: 18 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5, delay: 0.06 * i, ease: [0.16, 1, 0.3, 1] as const } })
+
+const MISSION: Record<string, { icon: LucideIcon; tone: string }> = {
+  quest: { icon: Target, tone: 'linear-gradient(180deg,#8F72FF,#6E4BF5)' },
+  read: { icon: Mic, tone: 'linear-gradient(180deg,#8AD4FF,#3E8EF0)' },
+  scan: { icon: ScanLine, tone: 'linear-gradient(180deg,#5FE0AC,#17A873)' },
+}
+
+/** The child's avatar inside a ring that fills as they earn XP, with their level pinned on. */
+function LevelAvatar({ value, level, children }: { value: number; level: number; children: React.ReactNode }) {
+  const R = 37
+  const C = 2 * Math.PI * R
   return (
-    <div className="h-2.5 w-full overflow-hidden rounded-full bg-black/15" role="presentation">
-      <motion.div className={`h-full rounded-full ${color}`} initial={{ width: 0 }} animate={{ width: `${Math.round(value * 100)}%` }} transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }} />
+    <div className="relative h-[84px] w-[84px] shrink-0">
+      <svg viewBox="0 0 84 84" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
+        <circle cx={42} cy={42} r={R} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={7} />
+        <motion.circle cx={42} cy={42} r={R} fill="none" stroke="#FFC93C" strokeWidth={7} strokeLinecap="round" strokeDasharray={C} initial={{ strokeDashoffset: C }} animate={{ strokeDashoffset: C * (1 - Math.max(0.04, value)) }} transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }} />
+      </svg>
+      <div className="absolute inset-[9px] overflow-hidden rounded-full bg-white">{children}</div>
+      <span className="absolute -bottom-1 -right-1 grid h-8 min-w-8 place-items-center rounded-full px-1.5 font-display text-base font-bold text-ink tabular ring-[3px] ring-white" style={{ background: 'linear-gradient(180deg,#FFD95E,#FFB81F)', boxShadow: '0 3px 0 #C98F00' }} aria-hidden>
+        {level}
+      </span>
     </div>
   )
 }
-
-const XP_PER_LEVEL = 500
 
 export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPlay: (w: IslandId, s: Subject, q: QuestDef) => void }) {
   const { profile, reset } = useProfile()
@@ -40,6 +57,7 @@ export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPl
   const upP = up ? fwp[up.id] : undefined
   const level = 1 + Math.floor(progress.gems / XP_PER_LEVEL)
   const xp = progress.gems % XP_PER_LEVEL
+  const hour = new Date().getHours()
   const [teamOpen, setTeamOpen] = useState(false)
   const [picked, setPicked] = useState<IslandId | null>(null)
   /** one world: always show its stage road; several: the island map until one is tapped */
@@ -57,97 +75,98 @@ export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPl
     return q ? (s === 'maths' ? domainName(q.domain) : q.domain) : 'All done!'
   }
 
-  const stat = (
-    <div className="flex flex-wrap gap-2">
-      <span className="chip bg-white/10 text-white ring-1 ring-inset ring-white/15">
-        <Flame size={16} className="text-coral" aria-hidden /> <span className="tabular">{CHILD.streak}</span> day streak
-      </span>
-      <span className="chip bg-white/10 text-white ring-1 ring-inset ring-white/15">
-        <Gem size={16} className="text-sea-soft" aria-hidden /> <span className="tabular">{progress.gems}</span>
-      </span>
-    </div>
-  )
-
   return (
     <main className="mx-auto w-full max-w-[1240px]">
-      <header className="relative overflow-hidden bg-night px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+20px)] text-white sm:px-8 lg:rounded-b-4xl">
-        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-grape/40 blur-3xl" aria-hidden />
-        <div className="pointer-events-none absolute -left-10 top-10 h-40 w-40 rounded-full bg-sea/30 blur-3xl" aria-hidden />
-        <div className="relative flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full ring-4 ring-white/20">
-              <ChildAvatar data={profile?.avatar} className="h-16 w-16" title={`${name}'s avatar`} />
-            </div>
-            <div>
-              <p className="text-sm text-white/70">{greeting()},</p>
-              <h1 className="font-display text-[1.75rem] font-semibold leading-tight">{name}</h1>
-              <button type="button" onClick={reset} className="text-sm font-bold text-white/70 underline decoration-white/40 underline-offset-4 hover:text-white">
-                Not {name}? Switch explorer
-              </button>
-            </div>
+      <header className="relative overflow-hidden px-5 pb-28 pt-[calc(env(safe-area-inset-top,0px)+18px)] text-white sm:px-8 lg:mx-4 lg:mt-4 lg:rounded-[36px]">
+        <SkyScene night={hour >= 18 || hour < 6} />
+        <div className="relative flex items-center gap-4">
+          <LevelAvatar value={xp / XP_PER_LEVEL} level={level}>
+            <ChildAvatar data={profile?.avatar} className="h-full w-full" title={`${name}'s avatar`} />
+          </LevelAvatar>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-white/85">{greeting()},</p>
+            <h1 className="title-pop truncate font-display text-[2.1rem] font-semibold leading-none sm:text-[2.5rem]">{name}!</h1>
           </div>
-          <div className="hidden sm:block">{stat}</div>
+          <button
+            type="button"
+            onClick={reset}
+            aria-label={`Not ${name}? Switch explorer`}
+            className="hud !min-h-[44px] shrink-0 !pl-3 transition-transform hover:-translate-y-0.5 active:translate-y-0.5 max-sm:!h-11 max-sm:!w-11 max-sm:justify-center max-sm:!p-0"
+          >
+            <ArrowLeftRight size={18} aria-hidden /> <span className="text-sm max-sm:hidden">Switch explorer</span>
+          </button>
         </div>
-        <div className="relative mt-5 sm:hidden">{stat}</div>
-        <div className="relative mt-5 flex items-center gap-3">
-          <span className="grid h-9 min-w-9 place-items-center rounded-xl bg-sun px-2 font-display text-lg font-bold text-ink tabular">{level}</span>
-          <div className="flex-1">
-            <div className="mb-1 flex justify-between text-xs font-bold text-white/75">
-              <span>Level {level} explorer · Year {year}</span>
+
+        <div className="relative mt-5 flex flex-wrap items-center gap-2.5">
+          <span className="hud">
+            <span className="hud-icon bg-coral">
+              <Flame size={18} className="flicker fill-sun text-sun" aria-hidden />
+            </span>
+            <span className="tabular">{CHILD.streak}</span> <span className="text-sm font-medium text-white/85">day streak</span>
+          </span>
+          <motion.span key={progress.gems} initial={{ scale: 1.2 }} animate={{ scale: 1 }} className="hud">
+            <span className="hud-icon bg-sea">
+              <Gem size={17} className="fill-sea-soft text-white" aria-hidden />
+            </span>
+            <span className="tabular">{progress.gems}</span> <span className="text-sm font-medium text-white/85">gems</span>
+          </motion.span>
+          <div className="min-w-[200px] flex-1 basis-full sm:basis-0">
+            <div className="mb-1 flex justify-between gap-3 text-xs font-bold text-white/90">
+              <span>
+                Level {level} explorer · Year {year}
+              </span>
               <span className="tabular">
                 {xp} / {XP_PER_LEVEL} XP
               </span>
             </div>
-            <Progress value={xp / XP_PER_LEVEL} />
+            <Bar value={xp / XP_PER_LEVEL} tone="#FFC93C" dark className="h-3.5" />
           </div>
         </div>
       </header>
 
-      <div className="relative -mt-16 grid gap-6 px-4 pb-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="relative -mt-20 grid gap-6 px-4 pb-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="grid min-w-0 gap-6">
           {up && (
-            <motion.section
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-              className="overflow-hidden rounded-4xl bg-paper shadow-pop"
-              aria-labelledby="quest-title"
-            >
+            <motion.section {...rise(0)} className="overflow-hidden rounded-[32px] bg-paper shadow-pop" aria-labelledby="quest-title">
               <div className="relative">
-                <Photo island={featured.id} alt={`${featured.name} photo`} className="h-44 sm:h-56" w={1200} banner />
-                <div className="absolute inset-0 bg-gradient-to-t from-night-deep/90 via-night-deep/30 to-transparent" aria-hidden />
-                <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
-                  <span className="chip bg-sun text-ink">
-                    <Sparkles size={14} aria-hidden /> Today's quest · {journey.title}
+                <Photo island={featured.id} alt={`${featured.name} photo`} className="h-48 sm:h-60" w={1200} banner />
+                <div className="absolute inset-0 bg-gradient-to-t from-night-deep via-night-deep/45 to-transparent" aria-hidden />
+                <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full py-1.5 pl-2 pr-3.5 font-display text-sm font-semibold text-ink sm:left-6" style={{ background: 'linear-gradient(180deg,#FFD95E,#FFB81F)', boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.6), 0 3px 0 #C98F00' }}>
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-white/70">
+                    <Sparkles size={14} aria-hidden />
                   </span>
-                  <h2 id="quest-title" className="mt-2 font-display text-[1.6rem] font-semibold leading-tight sm:text-[2rem]">
+                  Today's quest
+                </span>
+                <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
+                  <p className="font-bold text-sun">
+                    {featured.name} · {journey.title}
+                  </p>
+                  <h2 id="quest-title" className="title-pop mt-0.5 font-display text-[1.6rem] font-semibold leading-tight sm:text-[2rem]">
                     {up.title}
                   </h2>
-                  <p className="text-white/85">
-                    {featured.name}. {domainName(up.domain)}, Year {year} maths.
+                  <p className="text-white/90">
+                    {domainName(up.domain)}, Year {year} maths
                   </p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-4 p-5 sm:p-6">
                 <div className="min-w-[180px] flex-1">
-                  <div className="mb-1.5 flex justify-between text-sm font-bold">
-                    <span>
-                      {upP ? `${upP.answered} of ${up.size} done` : `${up.size} questions`}
+                  <div className="mb-1.5 flex items-center justify-between gap-2 text-sm font-bold">
+                    <span>{upP ? `${upP.answered} of ${up.size} done` : `${up.size} questions`}</span>
+                    <span className="chip bg-sea-soft/60 py-0.5 text-ink">
+                      <Gem size={14} className="fill-sea-soft text-sea-deep" aria-hidden /> +{up.size * 10} gems
                     </span>
-                    <span className="text-ink-soft">+{up.size * 10} gems to finish</span>
                   </div>
-                  <div className="h-2.5 overflow-hidden rounded-full bg-mist-deep">
-                    <div className="h-full rounded-full bg-mint" style={{ width: `${upP ? (upP.answered / up.size) * 100 : 0}%` }} />
-                  </div>
+                  <Bar value={upP ? upP.answered / up.size : 0} tone="#22C58B" className="h-3.5" />
                 </div>
-                <button type="button" className="btn btn-sun w-full sm:w-auto" onClick={() => onPlay(featured.id, 'maths', up)}>
-                  <Play size={20} className="fill-ink" aria-hidden /> {upP ? 'Continue quest' : 'Start quest'}
+                <button type="button" className="btn btn-sun sheen w-full text-xl sm:w-auto sm:px-8" onClick={() => onPlay(featured.id, 'maths', up)}>
+                  <Play size={22} className="fill-ink" aria-hidden /> {upP ? 'Continue quest' : 'Start quest'}
                 </button>
               </div>
             </motion.section>
           )}
 
-          <section className="card overflow-hidden p-3 sm:p-4" aria-labelledby="world-title">
+          <motion.section {...rise(1)} className="card overflow-hidden p-3 sm:p-4" aria-labelledby="world-title">
             {focus ? (
               <StagePanel
                 world={focus}
@@ -159,87 +178,104 @@ export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPl
               />
             ) : (
               <>
-                <div className="flex items-end justify-between gap-3 px-2 pb-3 pt-1">
-                  <div>
-                    <h2 id="world-title" className="font-display text-2xl font-semibold">
+                <div className="flex items-center gap-3 px-2 pb-3 pt-1">
+                  <span className="tile h-12 w-12" style={{ background: 'linear-gradient(180deg,#6FD3FF,#3E8EF0)' }}>
+                    <MapIcon size={24} aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h2 id="world-title" className="font-display text-2xl font-semibold leading-tight">
                       Your world
                     </h2>
-                    <p className="text-ink-soft">Tap a world to see its stages.</p>
+                    <p className="text-ink-soft">Tap an island to see its stages.</p>
                   </div>
-                  <span className="chip shrink-0 whitespace-nowrap bg-mist text-ink-soft">{picks.length} worlds</span>
+                  <span className="chip shrink-0 whitespace-nowrap bg-grape-soft text-grape-deep">{picks.length} worlds</span>
                 </div>
                 <div className="mx-auto max-w-[560px]">
                   <WorldMap picks={picks} current={featured.id} onPick={(i) => setPicked(i.id)} stages={mapStages} />
                 </div>
               </>
             )}
-          </section>
+          </motion.section>
         </div>
 
         <aside className="grid gap-6 lg:sticky lg:top-6">
-          <section className="card flex items-center gap-4 p-5" aria-label="Message from Nova">
+          <motion.section {...rise(2)} className="relative flex items-center gap-4 overflow-hidden rounded-[28px] p-5 shadow-card" style={{ background: 'linear-gradient(135deg,#FFF6D6 0%,#FFE7C2 100%)' }} aria-label="Message from Nova">
             <BuddyDuo data={profile?.avatar} mood="wink" name={name} />
-            <div>
-              <p className="font-display text-lg font-semibold">Nova says</p>
+            <div className="relative min-w-0 flex-1 rounded-3xl rounded-bl-lg bg-paper px-4 py-3 shadow-[0_3px_0_rgba(23,21,58,0.08)]">
+              <p className="font-display text-lg font-semibold leading-tight">Nova says</p>
               <p className="text-ink-soft">{up ? `Ready, ${name}? Your next ${journey.quest.toLowerCase()} in ${featured.name} is waiting.` : `Amazing, ${name}! Try another world.`}</p>
             </div>
-          </section>
+          </motion.section>
 
-          <section className="card p-5" aria-labelledby="daily-title">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 id="daily-title" className="font-display text-xl font-semibold">
-                Daily missions
-              </h2>
-              <span className="text-sm font-bold text-ink-soft">Resets at midnight</span>
+          <motion.section {...rise(3)} className="card p-5" aria-labelledby="daily-title">
+            <div className="mb-3 flex items-center gap-3">
+              <span className="tile h-11 w-11" style={{ background: 'linear-gradient(180deg,#FF9A7A,#FF6B57)' }}>
+                <Swords size={22} aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 id="daily-title" className="font-display text-xl font-semibold leading-tight">
+                  Daily missions
+                </h2>
+                <p className="text-sm text-ink-soft">New ones at midnight</p>
+              </div>
             </div>
-            <ul className="grid gap-3">
+            <ul className="grid gap-2.5">
               {DAILY.map((d) => {
                 const done = d.done >= d.total
+                const m = MISSION[d.id] ?? MISSION.quest!
                 return (
-                  <li key={d.id} className="flex items-center gap-3 rounded-2xl bg-mist p-3">
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${done ? 'bg-mint text-white' : 'bg-paper text-ink-faint ring-2 ring-inset ring-mist-deep'}`}>
-                      {done ? <Check size={18} strokeWidth={3} aria-hidden /> : <span className="text-sm font-bold tabular">{Math.round((d.done / d.total) * 100)}%</span>}
+                  <li key={d.id} className="flex items-center gap-3 rounded-[20px] bg-[#F4F5FE] p-3 shadow-[inset_0_0_0_2px_rgba(23,21,58,0.04)]">
+                    <span className="tile h-11 w-11" style={{ background: done ? 'linear-gradient(180deg,#5FE0AC,#17A873)' : m.tone }}>
+                      {done ? <Check size={22} strokeWidth={3} aria-hidden /> : <m.icon size={22} aria-hidden />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-bold leading-tight">{d.label}</span>
-                      <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-mist-deep">
-                        <span className="block h-full rounded-full bg-grape" style={{ width: `${(d.done / d.total) * 100}%` }} />
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="font-bold leading-tight">{d.label}</span>
+                        <span className="shrink-0 text-xs font-bold text-ink-soft tabular">
+                          {d.done}/{d.total}
+                        </span>
                       </span>
+                      <Bar value={d.done / d.total} tone="#7C5CFF" className="mt-1.5 h-2.5" />
                     </span>
-                    <span className="chip shrink-0 bg-sun-soft text-ink">
-                      <Gem size={14} className="text-sea" aria-hidden /> {d.reward}
+                    <span className="chip shrink-0 bg-paper text-ink shadow-[0_2px_0_rgba(23,21,58,0.1)]">
+                      <Gem size={14} className="fill-sea-soft text-sea-deep" aria-hidden /> {d.reward}
                     </span>
                   </li>
                 )
               })}
             </ul>
-          </section>
+          </motion.section>
 
-          <section className="grid grid-cols-2 gap-4" aria-label="Subjects">
+          <motion.section {...rise(4)} className="grid grid-cols-2 gap-4" aria-label="Subjects">
             {(
               [
-                { id: 'maths', name: 'Maths', icon: Calculator, tone: 'bg-grape', soft: 'bg-grape-soft text-grape-deep' },
-                { id: 'english', name: 'English', icon: BookOpen, tone: 'bg-mint', soft: 'bg-mint-soft text-mint-deep' },
+                { id: 'maths', name: 'Maths', icon: Calculator, bg: 'linear-gradient(150deg,#7C5CFF 0%,#5B3BE0 100%)', edge: '#3F25B0' },
+                { id: 'english', name: 'English', icon: BookOpen, bg: 'linear-gradient(150deg,#13996B 0%,#0B6E4C 100%)', edge: '#07513A' },
               ] as const
             ).map((s) => {
               const v = subjectFraction(s.id)
               return (
-                <button key={s.name} type="button" onClick={() => onWorld(featured.id)} className="card p-4 text-left">
-                  <span className={`grid h-10 w-10 place-items-center rounded-xl ${s.soft}`}>
-                    <s.icon size={22} aria-hidden />
+                <button
+                  key={s.name}
+                  type="button"
+                  onClick={() => onWorld(featured.id)}
+                  className="relative overflow-hidden rounded-[26px] p-4 text-left text-white transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-1"
+                  style={{ background: s.bg, boxShadow: `inset 0 2px 0 rgba(255,255,255,0.3), 0 6px 0 ${s.edge}, 0 18px 26px -14px ${s.edge}` }}
+                >
+                  <s.icon size={86} className="pointer-events-none absolute -right-4 -top-3 rotate-12 text-white/15" aria-hidden />
+                  <span className="relative grid h-11 w-11 place-items-center rounded-2xl bg-white/20 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.3)]">
+                    <s.icon size={24} aria-hidden />
                   </span>
-                  <p className="mt-3 font-display text-lg font-semibold">{s.name}</p>
-                  <p className="truncate text-sm text-ink-soft">Next: {nextTopic(s.id)}</p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist-deep">
-                      <div className={`h-full rounded-full ${s.tone}`} style={{ width: `${Math.max(2, v * 100)}%` }} />
-                    </div>
+                  <p className="relative mt-3 font-display text-xl font-semibold leading-tight">{s.name}</p>
+                  <p className="relative truncate text-sm text-white/90">Next: {nextTopic(s.id)}</p>
+                  <div className="relative mt-3 flex items-center gap-2">
+                    <Bar value={v} tone="#FFC93C" dark className="h-2.5 flex-1" />
                     <span className="text-sm font-bold tabular">{Math.round(v * 100)}%</span>
                   </div>
                 </button>
               )
             })}
-          </section>
+          </motion.section>
         </aside>
       </div>
       <TeamPicker open={teamOpen} onClose={() => setTeamOpen(false)} />
@@ -279,12 +315,12 @@ function StagePanel({
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-4">
       <div className="flex items-center gap-3 px-1 pt-1">
         {onBack && (
-          <button type="button" onClick={onBack} aria-label="Back to all worlds" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-mist text-ink hover:bg-mist-deep">
+          <button type="button" onClick={onBack} aria-label="Back to all worlds" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-paper text-ink shadow-[inset_0_0_0_2px_#DCE0F5,0_3px_0_#CDD2EE] transition-transform hover:-translate-y-0.5 active:translate-y-0.5">
             <ArrowLeft size={22} aria-hidden />
           </button>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-ink-soft">
+          <p className="text-sm font-bold" style={{ color: island.tint[1] }}>
             {island.name} · {STAGES[world].title}
           </p>
           <h2 id="world-title" className="truncate font-display text-2xl font-semibold leading-tight">
@@ -319,8 +355,8 @@ function StagePanel({
               ['Goals', String(stats.firstTry)],
               ['Assists', String(stats.helped)],
             ].map(([k, v]) => (
-              <div key={k} className="rounded-2xl bg-mist p-2">
-                <p className="font-display text-xl font-semibold tabular">{v}</p>
+              <div key={k} className="rounded-2xl bg-[#E6F8EE] p-2 shadow-[inset_0_0_0_2px_rgba(15,138,95,0.12)]">
+                <p className="font-display text-xl font-semibold tabular text-[#0B6B45]">{v}</p>
                 <p className="text-xs font-bold text-ink-soft">{k}</p>
               </div>
             ))}
@@ -336,24 +372,27 @@ function StagePanel({
       <div className="grid grid-cols-2 gap-3">
         {(
           [
-            ['maths', 'Maths', Calculator, maths, 'bg-grape text-white'],
-            ['english', 'English', BookOpen, english, 'bg-mint-deep text-white'],
+            ['maths', 'Maths', Calculator, maths, 'linear-gradient(150deg,#7C5CFF 0%,#5B3BE0 100%)', '#3F25B0'],
+            ['english', 'English', BookOpen, english, 'linear-gradient(150deg,#13996B 0%,#0B6E4C 100%)', '#07513A'],
           ] as const
-        ).map(([sub, label, Icon, q, tone]) => (
+        ).map(([sub, label, Icon, q, bg, edge]) => (
           <button
             key={sub}
             type="button"
             disabled={!q}
             onClick={() => q && onPlay(sub, q)}
-            className={`flex min-h-[96px] flex-col items-start justify-between rounded-3xl p-4 text-left shadow-pop transition-transform active:translate-y-0.5 disabled:opacity-50 ${tone}`}
+            className="flex min-h-[104px] flex-col items-start justify-between rounded-3xl p-4 text-left text-white transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-1 disabled:opacity-50"
+            style={{ background: bg, boxShadow: `inset 0 2px 0 rgba(255,255,255,0.3), 0 6px 0 ${edge}` }}
           >
             <span className="flex w-full items-center justify-between">
-              <Icon size={26} aria-hidden />
-              <Play size={22} className="fill-current" aria-hidden />
+              <Icon size={28} aria-hidden />
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-sun text-ink shadow-[0_3px_0_#C98F00]">
+                <Play size={18} className="ml-0.5 fill-current" aria-hidden />
+              </span>
             </span>
             <span className="w-full min-w-0">
               <span className="block font-display text-xl font-semibold leading-tight">{label}</span>
-              <span className="block truncate text-sm opacity-85">{q ? q.title : 'All done!'}</span>
+              <span className="block truncate text-sm text-white/90">{q ? q.title : 'All done!'}</span>
             </span>
           </button>
         ))}

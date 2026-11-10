@@ -267,7 +267,7 @@ export function AvatarStep({ name, initial, onBack, onDone }: { name: string; in
           <Check size={20} aria-hidden /> {mode === 'photo' && photo.s !== 'done' ? 'Draw your avatar first' : 'Let’s go!'}
         </button>
       </div>
-      <button type="button" onClick={() => onDone({ kind: 'built', look: DEFAULT_LOOK })} className="mt-3 w-full text-center text-sm font-bold text-ink-soft underline decoration-2 underline-offset-4 hover:text-ink">
+      <button type="button" onClick={() => onDone({ kind: 'built', look: DEFAULT_LOOK })} className="mt-2 min-h-[44px] w-full text-center text-sm font-bold text-ink-soft underline decoration-2 underline-offset-4 hover:text-ink">
         Skip for now
       </button>
     </div>

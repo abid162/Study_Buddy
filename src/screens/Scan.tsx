@@ -78,7 +78,7 @@ export function Scan({ onPractise }: { onPractise: (world: IslandId, subject: Su
   return (
     <main className="mx-auto w-full max-w-[860px] px-4 pb-10 pt-[calc(env(safe-area-inset-top,0px)+20px)] sm:px-8">
       <header className="mb-5 flex items-center gap-4">
-        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-night text-sun shadow-pop">
+        <span className="tile h-16 w-16 !rounded-[22px] -rotate-3" style={{ background: 'linear-gradient(180deg,#5FE0AC,#17A873)' }}>
           <ScanLine size={28} aria-hidden />
         </span>
         <div>
@@ -113,7 +113,7 @@ export function Scan({ onPractise }: { onPractise: (world: IslandId, subject: Su
                     ['auto', 'Not sure'],
                   ] as const
                 ).map(([id, label]) => (
-                  <button key={id} type="button" role="radio" aria-checked={pick === id} onClick={() => setPick(id)} className={`min-h-[52px] rounded-2xl font-display text-lg font-semibold ring-2 ring-inset transition-colors ${pick === id ? 'bg-grape text-white ring-grape' : 'bg-mist text-ink ring-mist-deep hover:bg-mist-deep'}`}>
+                  <button key={id} type="button" role="radio" aria-checked={pick === id} onClick={() => setPick(id)} className={`min-h-[54px] rounded-[18px] font-display text-lg font-semibold transition-transform active:translate-y-0.5 ${pick === id ? 'bg-grape text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.3),0_4px_0_#4A2DC4]' : 'bg-paper text-ink shadow-[inset_0_0_0_2px_#DCE0F5,0_4px_0_#CDD2EE]'}`}>
                     {label}
                   </button>
                 ))}

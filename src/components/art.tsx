@@ -226,41 +226,94 @@ export interface IslandStage {
   within: number
 }
 
+/** The sea both maps sit on: deep-to-shallow water, drifting wave lines, glints, a little sailing boat. */
+function Sea({ id, H, boat }: { id: string; H: number; boat?: [number, number] }) {
+  return (
+    <>
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0.3" y2="1">
+          <stop offset="0%" stopColor="#6FD3FF" />
+          <stop offset="55%" stopColor="#3FA2F7" />
+          <stop offset="100%" stopColor="#3B7BF0" />
+        </linearGradient>
+        <radialGradient id="isl-grass" cx="50%" cy="30%" r="75%">
+          <stop offset="0%" stopColor="#B4F2A6" />
+          <stop offset="100%" stopColor="#3FBF63" />
+        </radialGradient>
+        <clipPath id={`${id}-clip`}>
+          <rect width={360} height={H} rx={30} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${id}-clip)`}>
+        <rect width={360} height={H} fill={`url(#${id})`} />
+        {/* light patches under the surface */}
+        <g fill="#fff" opacity={0.1}>
+          <ellipse cx={60} cy={H * 0.3} rx={90} ry={34} />
+          <ellipse cx={300} cy={H * 0.62} rx={110} ry={40} />
+          <ellipse cx={150} cy={H * 0.92} rx={120} ry={30} />
+        </g>
+        <g className="wave" opacity={0.55} fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round">
+          {[[26, 44], [222, 30], [150, 0.36], [18, 0.78], [300, 0.6], [140, 0.86], [250, 0.9], [176, 0.42], [40, 0.3], [310, 0.2]].map(([x, y], i) => {
+            const yy = y! <= 1 ? y! * H : y!
+            return <path key={i} d={`M${x} ${yy} q6 -5 12 0 t12 0`} />
+          })}
+        </g>
+        {[[40, 0.14], [320, 0.44], [200, 0.7], [70, 0.94], [330, 0.86]].map(([x, y], i) => (
+          <g key={i} transform={`translate(${x} ${y! * H}) scale(0.5)`}>
+            <path className="twinkle" style={{ animationDelay: `${i * 0.5}s` }} d="M12 0 C13 8 16 11 24 12 C16 13 13 16 12 24 C11 16 8 13 0 12 C8 11 11 8 12 0 Z" fill="#fff" />
+          </g>
+        ))}
+        {/* clouds drifting over the water */}
+        <g fill="#fff" opacity={0.9}>
+          <g className="float">
+            <ellipse cx={176} cy={24} rx={24} ry={9} />
+            <ellipse cx={194} cy={19} rx={15} ry={9} />
+            <ellipse cx={160} cy={21} rx={11} ry={7} />
+          </g>
+          <g className="float" style={{ animationDelay: '-1.6s' }}>
+            <ellipse cx={28} cy={H - 26} rx={20} ry={7} />
+            <ellipse cx={42} cy={H - 31} rx={12} ry={7} />
+          </g>
+        </g>
+        {boat && (
+          <g transform={`translate(${boat[0]} ${boat[1]})`}>
+            <g className="bob">
+              <path d="M-14 0 h28 l-5 8 h-18 z" fill="#FF6B57" stroke="#17153A" strokeWidth={1.8} strokeLinejoin="round" />
+              <line x1={0} y1={0} x2={0} y2={-22} stroke="#17153A" strokeWidth={1.8} />
+              <path d="M2 -21 L14 -4 H2 Z" fill="#fff" stroke="#17153A" strokeWidth={1.8} strokeLinejoin="round" />
+              <path d="M-2 -18 L-10 -4 H-2 Z" fill="#FFC93C" stroke="#17153A" strokeWidth={1.8} strokeLinejoin="round" />
+            </g>
+          </g>
+        )}
+      </g>
+    </>
+  )
+}
+
+/** Where the little boat sails, by number of worlds (kept clear of islands and labels). */
+const BOAT: Record<number, [number, number]> = { 1: [300, 210], 2: [300, 60], 3: [300, 300], 4: [180, 200], 5: [300, 430], 6: [182, 330] }
+
 export function WorldMap({ picks, current, onPick, stages = {} }: { picks: IslandId[]; current: IslandId; onPick: (i: Island) => void; stages?: Partial<Record<IslandId, IslandStage>> }) {
   const shown = picks.map((id) => ISLANDS.find((i) => i.id === id)!).filter(Boolean)
-  const slot = SLOTS[Math.min(Math.max(shown.length, 1), 6)]
+  const count = Math.min(Math.max(shown.length, 1), 6)
+  const slot = SLOTS[count]
   const H = slot.h
   const pos = (i: number) => slot.at[i] ?? slot.at[slot.at.length - 1]
   const ci = Math.max(0, shown.findIndex((i) => i.id === current))
   const [bx, by] = pos(ci)
+  // a dotted sea route that links the islands in order
+  const route = shown
+    .map((_, i) => {
+      const [x, y] = pos(i)
+      if (i === 0) return `M${x} ${y}`
+      const [px, py] = pos(i - 1)
+      return `Q${(px + x) / 2 + (i % 2 ? 26 : -26)} ${(py + y) / 2 - 14} ${x} ${y}`
+    })
+    .join(' ')
   return (
     <svg viewBox={`0 0 360 ${H}`} className="h-auto w-full" role="group" aria-label="Your world map">
-      <defs>
-        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#7CC7FF" />
-          <stop offset="100%" stopColor="#3E8EF0" />
-        </linearGradient>
-        <radialGradient id="isl-grass" cx="50%" cy="35%" r="70%">
-          <stop offset="0%" stopColor="#9BE7A8" />
-          <stop offset="100%" stopColor="#4CC46E" />
-        </radialGradient>
-        <clipPath id="sea-clip">
-          <rect width={360} height={H} rx={28} />
-        </clipPath>
-      </defs>
-      <g clipPath="url(#sea-clip)">
-        <rect width={360} height={H} fill="url(#sea)" />
-        <g className="wave" opacity={0.35} fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round">
-          {[[30, 40], [220, 30], [150, 190], [20, 420], [300, 330], [140, 460], [250, 470], [180, 210], [40, 160]].map(([x, y], i) => (
-            <path key={i} d={`M${x} ${y} q6 -5 12 0 t12 0`} />
-          ))}
-        </g>
-        <g fill="#fff" opacity={0.85}>
-          <ellipse cx={180} cy={26} rx={22} ry={8} />
-          <ellipse cx={196} cy={22} rx={14} ry={8} />
-          <ellipse cx={30} cy={H - 30} rx={16} ry={6} />
-        </g>
-      </g>
+      <Sea id="sea" H={H} boat={BOAT[count]} />
+      {shown.length > 1 && <path className="dash" d={route} fill="none" stroke="#fff" strokeOpacity={0.7} strokeWidth={3} strokeDasharray="3 13" strokeLinecap="round" />}
 
       {shown.map((isl, i) => {
         const [x, y] = pos(i)
@@ -282,32 +335,47 @@ export function WorldMap({ picks, current, onPick, stages = {} }: { picks: Islan
             }}
             style={{ cursor: 'pointer', outline: 'none' }}
           >
-            <ellipse cx={0} cy={10} rx={50} ry={22} fill="#1F5FB8" opacity={0.35} />
-            <ellipse cx={0} cy={4} rx={50} ry={22} fill="#FFE3A3" stroke="#17153A" strokeWidth={2} />
-            <ellipse cx={0} cy={-1} rx={42} ry={17} fill="url(#isl-grass)" />
-            <Landmark id={isl.id} />
-            {active && <ellipse cx={0} cy={4} rx={56} ry={27} fill="none" stroke="#FFC93C" strokeWidth={3} strokeDasharray="6 5" />}
-            <g transform="translate(0 40)">
-              <rect x={-62} y={-13} width={124} height={st ? 40 : 24} rx={12} fill="#17153A" opacity={0.94} />
-              <text x={0} y={3} textAnchor="middle" fontSize={12} fontWeight={700} fill="#fff" fontFamily="Fredoka Variable, sans-serif">
+            {/* shallow water and foam around the island */}
+            <ellipse cx={0} cy={8} rx={66} ry={31} fill="#B9ECFF" opacity={0.45} />
+            <ellipse cx={0} cy={7} rx={59} ry={27} fill="none" stroke="#fff" strokeWidth={2} opacity={0.8} strokeDasharray="14 8" />
+            {active && <ellipse className="dash" cx={0} cy={7} rx={66} ry={31} fill="none" stroke="#FFC93C" strokeWidth={3.5} strokeDasharray="8 8" strokeLinecap="round" />}
+            <g className="bob" style={{ animationDelay: `${-i * 0.9}s` }}>
+              <ellipse cx={0} cy={11} rx={54} ry={22} fill="#1F5FB8" opacity={0.3} />
+              <ellipse cx={0} cy={5} rx={54} ry={23} fill="#FFE3A3" stroke="#17153A" strokeWidth={2.2} />
+              <ellipse cx={0} cy={0} rx={46} ry={18} fill="url(#isl-grass)" />
+              <ellipse cx={-14} cy={-6} rx={18} ry={5} fill="#fff" opacity={0.25} />
+              <circle cx={-36} cy={2} r={5} fill="#2FA85A" stroke="#17153A" strokeWidth={1.4} />
+              <circle cx={37} cy={3} r={4} fill="#2FA85A" stroke="#17153A" strokeWidth={1.4} />
+              <g transform="translate(0 2) scale(1.22)">
+                <Landmark id={isl.id} />
+              </g>
+            </g>
+            {/* name plate */}
+            <g transform="translate(0 46)">
+              <rect x={-66} y={-11} width={132} height={st ? 44 : 26} rx={14} fill="#17153A" opacity={0.25} />
+              <rect x={-66} y={-15} width={132} height={st ? 44 : 26} rx={14} fill="#fff" stroke="#17153A" strokeWidth={2} />
+              <text x={0} y={2} textAnchor="middle" fontSize={13} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif">
                 {isl.name}
               </text>
               {st && (
                 <>
-                  <text x={0} y={16} textAnchor="middle" fontSize={9.5} fontWeight={700} fill="#FFC93C" fontFamily="Fredoka Variable, sans-serif">
+                  <text x={0} y={15} textAnchor="middle" fontSize={9.5} fontWeight={700} fill={isl.tint[1]} fontFamily="Fredoka Variable, sans-serif">
                     {st.name.length > 22 ? `${st.name.slice(0, 21)}…` : st.name}
                   </text>
-                  <rect x={-48} y={21} width={96} height={4} rx={2} fill="#ffffff" opacity={0.2} />
-                  <rect x={-48} y={21} width={Math.max(4, 96 * st.within)} height={4} rx={2} fill="#22C58B" />
+                  <rect x={-50} y={19.5} width={100} height={5} rx={2.5} fill="#17153A" opacity={0.12} />
+                  <rect x={-50} y={19.5} width={Math.max(6, 100 * st.within)} height={5} rx={2.5} fill={isl.tint[0]} />
                 </>
               )}
             </g>
-            <g transform="translate(42 -26)">
-              <circle r={15} fill="#FFC93C" stroke="#17153A" strokeWidth={2} />
-              <text y={-3} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif" letterSpacing={0.4}>
+            {/* stage badge */}
+            <g transform="translate(46 -30)">
+              <circle r={17} cy={2.5} fill="#17153A" opacity={0.25} />
+              <circle r={17} fill="#FFC93C" stroke="#17153A" strokeWidth={2.2} />
+              <circle r={12.5} fill="none" stroke="#fff" strokeWidth={1.5} opacity={0.7} />
+              <text y={-3.5} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif" letterSpacing={0.4}>
                 STAGE
               </text>
-              <text y={10} textAnchor="middle" fontSize={14} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif">
+              <text y={10} textAnchor="middle" fontSize={15} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif">
                 {st?.n ?? 1}
               </text>
             </g>
@@ -317,8 +385,9 @@ export function WorldMap({ picks, current, onPick, stages = {} }: { picks: Islan
 
       {shown.length > 0 && (
         <motion.g animate={{ y: [0, -6, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}>
-          <g transform={`translate(${bx - 72} ${by - 56})`}>
-            <circle cx={20} cy={20} r={21} fill="#fff" stroke="#17153A" strokeWidth={2} />
+          <g transform={`translate(${bx - 78} ${by - 64})`}>
+            <circle cx={20} cy={22.5} r={22} fill="#17153A" opacity={0.25} />
+            <circle cx={20} cy={20} r={22} fill="#fff" stroke="#17153A" strokeWidth={2.2} />
             <foreignObject x={2} y={2} width={36} height={36}>
               <Buddy className="h-9 w-9" />
             </foreignObject>
@@ -391,25 +460,10 @@ export function StageMap({ world, names, index, within, marker, onStage }: { wor
   const ay = wy - 10
   return (
     <svg viewBox={`0 0 360 ${H}`} className="h-auto w-full" role="group" aria-label={`Stages: you are on stage ${index + 1}, ${names[index]}`}>
-      <defs>
-        <linearGradient id="sea2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#7CC7FF" />
-          <stop offset="100%" stopColor="#3E8EF0" />
-        </linearGradient>
-        <clipPath id="sea2-clip">
-          <rect width={360} height={H} rx={28} />
-        </clipPath>
-      </defs>
-      <g clipPath="url(#sea2-clip)">
-        <rect width={360} height={H} fill="url(#sea2)" />
-        <g opacity={0.35} fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round">
-          {[[30, 40], [300, 120], [170, 230], [24, 330], [310, 380], [180, 470], [60, 520], [300, 500]].map(([x, y], i) => (
-            <path key={i} d={`M${x} ${y} q6 -5 12 0 t12 0`} />
-          ))}
-        </g>
-      </g>
-      <path d={path} fill="none" stroke="#fff" strokeOpacity={0.75} strokeWidth={5} strokeDasharray="2 10" strokeLinecap="round" />
-      <path d={done} fill="none" stroke="#FFC93C" strokeWidth={6} strokeLinecap="round" />
+      <Sea id="sea2" H={H} />
+      <path d={path} fill="none" stroke="#fff" strokeOpacity={0.8} strokeWidth={5} strokeDasharray="2 11" strokeLinecap="round" />
+      <path d={done} fill="none" stroke="#17153A" strokeOpacity={0.25} strokeWidth={10} strokeLinecap="round" />
+      <path d={done} fill="none" stroke="#FFC93C" strokeWidth={7} strokeLinecap="round" />
       {nextSpot && <line x1={cx} y1={cy} x2={wx} y2={wy} stroke="#FFC93C" strokeWidth={6} strokeLinecap="round" />}
 
       {STAGE_SPOTS.map(([x, y], i) => {
@@ -431,7 +485,8 @@ export function StageMap({ world, names, index, within, marker, onStage }: { wor
           >
             <ellipse cx={0} cy={7} rx={now ? 36 : 30} ry={now ? 15 : 12} fill="#1F5FB8" opacity={0.3} />
             <ellipse cx={0} cy={2} rx={now ? 36 : 30} ry={now ? 15 : 12} fill={isDone || now ? '#FFE3A3' : '#E1E5F2'} stroke="#17153A" strokeWidth={2} />
-            <ellipse cx={0} cy={-1} rx={now ? 29 : 24} ry={now ? 10 : 8} fill={isDone || now ? '#4CC46E' : '#C5CAE6'} />
+            <ellipse cx={0} cy={-1} rx={now ? 29 : 24} ry={now ? 10 : 8} fill={isDone || now ? 'url(#isl-grass)' : '#C5CAE6'} />
+            {now && <ellipse className="dash" cx={0} cy={3} rx={44} ry={20} fill="none" stroke="#FFC93C" strokeWidth={3} strokeDasharray="7 7" strokeLinecap="round" />}
             {/* stage marker: flag when done, trophy when current, lock when ahead */}
             {isDone ? (
               <g>
@@ -452,8 +507,9 @@ export function StageMap({ world, names, index, within, marker, onStage }: { wor
             )}
             {/* name label, on the open side of the island */}
             <g transform={`translate(${left ? 44 : -44 - w} -10)`}>
-              <rect width={w} height={24} rx={12} fill={now ? '#FFC93C' : '#17153A'} opacity={now ? 1 : isDone ? 0.92 : 0.6} />
-              <text x={w / 2} y={16} textAnchor="middle" fontSize={11} fontWeight={700} fill={now ? '#17153A' : '#fff'} fontFamily="Fredoka Variable, sans-serif">
+              {(now || isDone) && <rect y={2.5} width={w} height={24} rx={12} fill="#17153A" opacity={0.25} />}
+              <rect width={w} height={24} rx={12} fill={now ? '#FFC93C' : isDone ? '#fff' : '#17153A'} opacity={now || isDone ? 1 : 0.5} stroke={now || isDone ? '#17153A' : 'none'} strokeWidth={2} />
+              <text x={w / 2} y={16} textAnchor="middle" fontSize={11} fontWeight={700} fill={now || isDone ? '#17153A' : '#fff'} fontFamily="Fredoka Variable, sans-serif">
                 {label}
               </text>
             </g>

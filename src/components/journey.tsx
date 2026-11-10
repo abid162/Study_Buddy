@@ -195,7 +195,7 @@ export function TeamPicker({ open, onClose }: { open: boolean; onClose: () => vo
 export function StageStrip({ world, info, avatar }: { world: IslandId; info: Info; avatar: React.ReactNode }) {
   const p = info.next ? info.within : 1
   return (
-    <div className="mx-auto w-full max-w-[1160px] px-4 pb-3 sm:px-6 lg:hidden" aria-label={`Stage ${info.index + 1}, ${info.stage.name}. ${info.next ? `${info.needed} more to ${info.next.name}` : 'Top stage'}`}>
+    <div className="relative mx-auto w-full max-w-[1160px] px-4 pb-3 sm:px-6 lg:hidden" aria-label={`Stage ${info.index + 1}, ${info.stage.name}. ${info.next ? `${info.needed} more to ${info.next.name}` : 'Top stage'}`}>
       <div className="mb-1 flex items-center justify-between gap-3 text-xs font-bold">
         <span className="truncate text-sun">
           Stage {info.index + 1} · {info.stage.name}
@@ -203,11 +203,11 @@ export function StageStrip({ world, info, avatar }: { world: IslandId; info: Inf
         <span className="shrink-0 text-white/75">{info.next ? `${info.needed} to ${info.next.name}` : 'Champion!'}</span>
       </div>
       <div className="relative h-8">
-        <div className="absolute inset-x-4 top-1/2 h-2.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/15">
-          <motion.div className="h-full rounded-full bg-gradient-to-r from-sun to-mint" initial={false} animate={{ width: `${p * 100}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} />
+        <div className="track track-dark absolute inset-x-4 top-1/2 h-3 -translate-y-1/2">
+          <motion.div className="fill bg-sun" initial={false} animate={{ width: `${p * 100}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} />
         </div>
         <motion.span
-          className="absolute top-0 h-8 w-8 -translate-x-1/2 overflow-hidden rounded-full bg-white ring-2 ring-sun"
+          className="absolute top-0 h-8 w-8 -translate-x-1/2 overflow-hidden rounded-full bg-white shadow-[0_3px_0_rgba(10,8,40,0.4)] ring-[2.5px] ring-sun"
           initial={false}
           animate={{ left: `calc(1rem + (100% - 2rem) * ${p})` }}
           transition={{ type: 'spring', stiffness: 90, damping: 18 }}
@@ -215,7 +215,7 @@ export function StageStrip({ world, info, avatar }: { world: IslandId; info: Inf
         >
           {avatar}
         </motion.span>
-        <span className="absolute right-0 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-sun text-ink" aria-hidden>
+        <span className="absolute right-0 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-sun text-ink shadow-[inset_0_2px_0_rgba(255,255,255,0.6),0_3px_0_#C98F00]" aria-hidden>
           <Trophy size={15} />
         </span>
       </div>
