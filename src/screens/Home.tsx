@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { BookOpen, Calculator, Check, ChevronRight, Flame, Gem, Play, Shirt, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { BookOpen, Calculator, Check, ChevronRight, Flame, Gem, Play, Shirt, Sparkles, X } from 'lucide-react'
 import { CHILD, DAILY, islandById, type IslandId } from '../data/world'
-import { Photo } from '../components/art'
+import { Photo, WorldMap } from '../components/art'
 import { StageTrack, TeamPicker } from '../components/journey'
 import { STAGES, leagueTable, ordinal, stageInfo } from '../data/stages'
 import { useProfile } from '../data/profile'
@@ -41,6 +41,14 @@ export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPl
   const level = 1 + Math.floor(progress.gems / XP_PER_LEVEL)
   const xp = progress.gems % XP_PER_LEVEL
   const [teamOpen, setTeamOpen] = useState(false)
+  const [sheet, setSheet] = useState<IslandId | null>(null)
+  const mapStages = Object.fromEntries(
+    picks.map((w) => {
+      const st = worldStats(progress.world(w), year)
+      const info = stageInfo(w, st.answered, st.questions)
+      return [w, { n: info.index + 1, name: info.stage.name, within: info.next ? info.within : 1 }]
+    }),
+  )
   const subjectFraction = (s: Subject) => picks.reduce((a, w) => a + worldStats(progress.world(w), year, s).fraction, 0) / picks.length
   const nextTopic = (s: Subject) => {
     const q = nextQuest(fwp, year, s)
@@ -104,7 +112,7 @@ export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPl
               aria-labelledby="quest-title"
             >
               <div className="relative">
-                <Photo island={featured.id} alt={`${featured.name} photo`} className="h-44 sm:h-56" w={1200} />
+                <Photo island={featured.id} alt={`${featured.name} photo`} className="h-44 sm:h-56" w={1200} banner />
                 <div className="absolute inset-0 bg-gradient-to-t from-night-deep/90 via-night-deep/30 to-transparent" aria-hidden />
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
                   <span className="chip bg-sun text-ink">
@@ -137,21 +145,21 @@ export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPl
             </motion.section>
           )}
 
-          <section aria-labelledby="world-title" className="grid gap-4">
-            <div className="flex items-end justify-between gap-3 px-1">
+          <section className="card overflow-hidden p-3 sm:p-4" aria-labelledby="world-title">
+            <div className="flex items-end justify-between gap-3 px-2 pb-3 pt-1">
               <div>
                 <h2 id="world-title" className="font-display text-2xl font-semibold">
-                  Your journeys
+                  Your world
                 </h2>
-                <p className="text-ink-soft">Every world covers the whole Year {year} syllabus. Climb the stages in each one.</p>
+                <p className="text-ink-soft">Tap a world to see your stage and play.</p>
               </div>
-              <span className="chip shrink-0 whitespace-nowrap bg-paper text-ink-soft shadow-card">
+              <span className="chip shrink-0 whitespace-nowrap bg-mist text-ink-soft">
                 {picks.length} {picks.length === 1 ? 'world' : 'worlds'}
               </span>
             </div>
-            {picks.map((w, i) => (
-              <JourneyCard key={w} world={w} year={year} delay={i * 0.06} onOpen={() => onWorld(w)} onPlay={(s, q) => onPlay(w, s, q)} onTeam={() => setTeamOpen(true)} />
-            ))}
+            <div className="mx-auto max-w-[560px]">
+              <WorldMap picks={picks} current={featured.id} onPick={(i) => setSheet(i.id)} stages={mapStages} />
+            </div>
           </section>
         </div>
 
@@ -221,38 +229,133 @@ export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPl
           </section>
         </aside>
       </div>
+      <StageSheet
+        world={sheet}
+        year={year}
+        onClose={() => setSheet(null)}
+        onOpen={(w) => {
+          setSheet(null)
+          onWorld(w)
+        }}
+        onPlay={(w, sub, q) => {
+          setSheet(null)
+          onPlay(w, sub, q)
+        }}
+        onTeam={() => setTeamOpen(true)}
+      />
       <TeamPicker open={teamOpen} onClose={() => setTeamOpen(false)} />
     </main>
   )
 }
 
-function JourneyCard({ world, year, delay, onOpen, onPlay, onTeam }: { world: IslandId; year: Year; delay: number; onOpen: () => void; onPlay: (s: Subject, q: QuestDef) => void; onTeam: () => void }) {
+/** Bottom sheet for one world: big stage, the stage road, football stats, Play. */
+function StageSheet({
+  world,
+  year,
+  onClose,
+  onOpen,
+  onPlay,
+  onTeam,
+}: {
+  world: IslandId | null
+  year: Year
+  onClose: () => void
+  onOpen: (w: IslandId) => void
+  onPlay: (w: IslandId, s: Subject, q: QuestDef) => void
+  onTeam: () => void
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!world) return
+    closeRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [world, onClose])
+  return (
+    <AnimatePresence>
+      {world && (
+        <motion.div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center sm:p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <button type="button" aria-label="Close" className="absolute inset-0 bg-night-deep/60 backdrop-blur-sm" onClick={onClose} />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sheet-title"
+            className="relative max-h-[92dvh] w-full max-w-[520px] overflow-y-auto rounded-t-4xl bg-paper shadow-pop sm:rounded-4xl"
+            initial={{ y: 60, opacity: 0.6 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+          >
+            <SheetBody world={world} year={year} closeRef={closeRef} onClose={onClose} onOpen={onOpen} onPlay={onPlay} onTeam={onTeam} />
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+function SheetBody({
+  world,
+  year,
+  closeRef,
+  onClose,
+  onOpen,
+  onPlay,
+  onTeam,
+}: {
+  world: IslandId
+  year: Year
+  closeRef: React.RefObject<HTMLButtonElement | null>
+  onClose: () => void
+  onOpen: (w: IslandId) => void
+  onPlay: (w: IslandId, s: Subject, q: QuestDef) => void
+  onTeam: () => void
+}) {
   const { profile } = useProfile()
   const progress = useProgress()
   const island = islandById(world)
+  const journey = JOURNEYS[world]
   const wp = progress.world(world)
   const stats = worldStats(wp, year)
   const info = stageInfo(world, stats.answered, stats.questions)
-  const up = nextQuest(wp, year, 'maths')
+  const maths = nextQuest(wp, year, 'maths')
+  const english = nextQuest(wp, year, 'english')
   const team = profile?.team
   const table = world === 'football' && team ? leagueTable(team, stats.answered, stats.firstTry + stats.helped, 0) : null
   const pos = table ? table.findIndex((r) => r.you) + 1 : 0
   return (
-    <motion.article initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="overflow-hidden rounded-4xl bg-paper shadow-card">
-      <button type="button" onClick={onOpen} className="relative block w-full text-left" aria-label={`Open ${island.name}`}>
-        <Photo island={world} n={info.index} alt={`${island.name} photo`} className="h-32 sm:h-40" w={1000} />
-        <div className="absolute inset-0 bg-gradient-to-t from-night-deep/90 via-night-deep/40 to-transparent" aria-hidden />
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4 text-white">
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-sun">
-              {island.name} · {STAGES[world].title}
-            </p>
-            <p className="truncate font-display text-2xl font-semibold leading-tight">{info.stage.name}</p>
-          </div>
-          <ChevronRight size={24} className="shrink-0" aria-hidden />
+    <>
+      <div className="relative">
+        <Photo island={world} n={info.index} alt={`${island.name} photo`} className="h-44 sm:h-52" w={1000} />
+        <div className="absolute inset-0 bg-gradient-to-t from-night-deep/90 via-night-deep/30 to-transparent" aria-hidden />
+        <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-ink">
+          <X size={22} aria-hidden />
+        </button>
+        <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+          <p className="text-sm font-bold text-sun">
+            {island.name} · {STAGES[world].title}
+          </p>
+          <h2 id="sheet-title" className="font-display text-[1.75rem] font-semibold leading-tight">
+            Stage {info.index + 1}: {info.stage.name}
+          </h2>
+          <p className="text-white/85">{info.stage.blurb}</p>
         </div>
-      </button>
-      <div className="grid gap-3 p-4">
+      </div>
+      <div className="grid gap-4 p-5" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom, 0px))' }}>
+        <div>
+          <div className="mb-1.5 flex justify-between gap-3 text-sm font-bold">
+            <span>{info.next ? `Next: ${info.next.name}` : 'Top of the ladder!'}</span>
+            {info.next && (
+              <span className="shrink-0 text-ink-soft">
+                {info.needed} more {info.needed === 1 ? 'answer' : 'answers'}
+              </span>
+            )}
+          </div>
+          <div className="h-3.5 overflow-hidden rounded-full bg-mist-deep">
+            <motion.div className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${island.tint[0]}, ${island.tint[1]})` }} initial={{ width: 0 }} animate={{ width: `${Math.max(3, (info.next ? info.within : 1) * 100)}%` }} transition={{ duration: 0.8 }} />
+          </div>
+        </div>
         <StageTrack world={world} info={info} />
         {world === 'football' &&
           (team ? (
@@ -268,7 +371,7 @@ function JourneyCard({ world, year, delay, onOpen, onPlay, onTeam }: { world: Is
                   <p className="text-xs font-bold text-ink-soft">{k}</p>
                 </div>
               ))}
-              <button type="button" onClick={onTeam} className="col-span-4 flex items-center justify-center gap-2 text-sm font-bold text-ink-soft underline underline-offset-4">
+              <button type="button" onClick={onTeam} className="col-span-4 flex min-h-[44px] items-center justify-center gap-2 text-sm font-bold text-ink-soft underline underline-offset-4">
                 <Shirt size={16} aria-hidden /> {team} · change team
               </button>
             </div>
@@ -277,23 +380,37 @@ function JourneyCard({ world, year, delay, onOpen, onPlay, onTeam }: { world: Is
               <Shirt size={20} aria-hidden /> Pick your Premier League team
             </button>
           ))}
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="min-w-0 flex-1 text-sm text-ink-soft">
-            {info.next ? (
-              <>
-                <span className="font-bold text-ink">{info.needed}</span> more {info.needed === 1 ? 'answer' : 'answers'} to reach <span className="font-bold text-ink">{info.next.name}</span>
-              </>
-            ) : (
-              'Top of the ladder. Champion!'
-            )}
-          </p>
-          {up && (
-            <button type="button" className="btn btn-sun min-h-[48px] px-5 text-base" onClick={() => onPlay('maths', up)}>
-              <Play size={18} className="fill-ink" aria-hidden /> Play
+        <div className="grid grid-cols-2 gap-3">
+          {(
+            [
+              ['maths', 'Maths', Calculator, maths, 'bg-grape text-white'],
+              ['english', 'English', BookOpen, english, 'bg-mint-deep text-white'],
+            ] as const
+          ).map(([sub, label, Icon, q, tone]) => (
+            <button
+              key={sub}
+              type="button"
+              disabled={!q}
+              onClick={() => q && onPlay(world, sub, q)}
+              className={`flex min-h-[96px] flex-col items-start justify-between rounded-3xl p-4 text-left shadow-pop transition-transform active:translate-y-0.5 disabled:opacity-50 ${tone}`}
+            >
+              <span className="flex w-full items-center justify-between">
+                <Icon size={26} aria-hidden />
+                <Play size={22} className="fill-current" aria-hidden />
+              </span>
+              <span className="w-full min-w-0">
+                <span className="block font-display text-xl font-semibold leading-tight">{label}</span>
+                <span className="block truncate text-sm opacity-85">{q ? q.title : 'All done!'}</span>
+              </span>
             </button>
-          )}
+          ))}
         </div>
+        <button type="button" onClick={() => onOpen(world)} className="btn btn-ghost w-full">
+          See all {plural(journey.quest.toLowerCase())} <ChevronRight size={20} aria-hidden />
+        </button>
       </div>
-    </motion.article>
+    </>
   )
 }
+
+const plural = (w: string) => (/(ch|sh|s|x)$/.test(w) ? `${w}es` : `${w}s`)

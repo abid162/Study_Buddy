@@ -559,7 +559,7 @@ function QuestionCard({ t, n, total, world, year, subject, statement, photo }: {
   return (
     <article className="overflow-hidden rounded-4xl bg-paper shadow-pop">
       <div className="relative">
-        <Photo island={world} n={photo} credit alt={`${island.name} photo`} className="h-32 sm:h-44" />
+        <Photo island={world} n={photo} credit alt={`${island.name} photo`} className="h-40 sm:h-52" />
         <div className="absolute inset-0 bg-gradient-to-t from-night-deep/80 to-transparent" aria-hidden />
         <span className="chip absolute bottom-3 left-4 bg-sun text-ink">
           <Sparkles size={14} aria-hidden /> {journey.leadIn(n)} · {n + 1} of {total}

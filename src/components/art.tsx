@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Star } from 'lucide-react'
 import { ISLANDS, type Island, type IslandId } from '../data/world'
-import { picUrl, worldPic } from '../data/photos'
+import { photosFor, picUrl, worldPic } from '../data/photos'
 
 /* ---------------- Nova, the study buddy (preset cartoon character) ---------------- */
 
@@ -68,13 +68,36 @@ export function Buddy({ mood = 'happy', className, title }: { mood?: Mood; class
 /* ---------------- Photo with illustrated fallback ---------------- */
 
 /** A world photo. `n` picks a photo from the world's set (0 = cover). `credit` shows the photographer. */
-export function Photo({ island, alt, className, w = 900, n = 0, credit = false }: { island: IslandId; alt: string; className?: string; w?: number; n?: number; credit?: boolean }) {
-  const pic = worldPic(island, n)
+/** `banner`: wide header photos; photos far too small for it are skipped (they still show on question cards and sheets). */
+export function Photo({ island, alt, className, w = 900, n = 0, credit = false, banner = false }: { island: IslandId; alt: string; className?: string; w?: number; n?: number; credit?: boolean; banner?: boolean }) {
+  /** photos skipped because they are far too small or the wrong shape for this box (e.g. a small portrait photo in a wide banner) */
+  const key = `${island}|${n}`
+  const [skipped, setSkipped] = useState({ key, by: 0 })
+  const skip = skipped.key === key ? skipped.by : 0
+  const total = photosFor(island).length
+  const pic = worldPic(island, n + skip)
   const [failed, setFailed] = useState<string | null>(null)
+  /** src of a photo too small to fill its box sharply: shown whole over a blurred copy instead of stretched */
+  const [small, setSmall] = useState<string | null>(null)
   const tint = ISLANDS.find((i) => i.id === island)!.tint
   const src = picUrl(pic, w)
+  const fit = small === src
+  const onLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget
+    const box = img.parentElement
+    if (!box) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    // object-cover scales by the larger ratio; if that blows the image up past ~1.6x of its real pixels it looks soft
+    const scale = Math.max((box.clientWidth * dpr) / img.naturalWidth, (box.clientHeight * dpr) / img.naturalHeight)
+    if (scale <= 1.6) return setSmall(null)
+    // shown whole it would fill less than half the box's width: try the next photo instead
+    const shownWidth = img.naturalWidth * Math.min(1, box.clientHeight / img.naturalHeight)
+    if (banner && shownWidth < box.clientWidth * 0.5 && skip < total - 1) return setSkipped({ key, by: skip + 1 })
+    setSmall(src)
+  }
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`} style={{ background: `linear-gradient(135deg, ${tint[0]}, ${tint[1]})` }}>
+      {failed !== src && fit && <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-2xl" />}
       {failed !== src && (
         <img
           key={src}
@@ -82,8 +105,9 @@ export function Photo({ island, alt, className, w = 900, n = 0, credit = false }
           alt={alt}
           loading="lazy"
           decoding="async"
+          onLoad={onLoad}
           onError={() => setFailed(src)}
-          className="absolute inset-0 h-full w-full object-cover"
+          className={`absolute inset-0 h-full w-full ${fit ? 'object-contain' : 'object-cover'}`}
         />
       )}
       {credit && failed !== src && (
@@ -187,15 +211,22 @@ function Landmark({ id }: { id: IslandId }) {
 
 /** Island positions on a 360-wide map, by how many worlds the child picked. No paths, no locks: every world is open. */
 const SLOTS: Record<number, { h: number; at: [number, number][] }> = {
-  1: { h: 250, at: [[180, 120]] },
-  2: { h: 270, at: [[100, 110], [262, 150]] },
-  3: { h: 360, at: [[96, 104], [266, 134], [168, 268]] },
-  4: { h: 380, at: [[96, 104], [266, 112], [98, 276], [264, 290]] },
-  5: { h: 470, at: [[94, 104], [268, 92], [276, 236], [88, 262], [180, 392]] },
-  6: { h: 480, at: [[92, 104], [268, 92], [278, 236], [86, 262], [176, 372], [292, 404]] },
+  1: { h: 260, at: [[180, 116]] },
+  2: { h: 290, at: [[100, 110], [262, 160]] },
+  3: { h: 390, at: [[96, 104], [266, 140], [170, 286]] },
+  4: { h: 400, at: [[96, 104], [266, 116], [98, 284], [264, 300]] },
+  5: { h: 510, at: [[94, 104], [268, 96], [272, 252], [92, 280], [180, 420]] },
+  6: { h: 540, at: [[92, 104], [268, 96], [272, 252], [90, 284], [92, 446], [268, 418]] },
 }
 
-export function WorldMap({ picks, current, onPick, levels = {} }: { picks: IslandId[]; current: IslandId; onPick: (i: Island) => void; levels?: Partial<Record<IslandId, number>> }) {
+/** Stage shown on an island: number (1 = first), its name, and progress towards the next one (0 to 1). */
+export interface IslandStage {
+  n: number
+  name: string
+  within: number
+}
+
+export function WorldMap({ picks, current, onPick, stages = {} }: { picks: IslandId[]; current: IslandId; onPick: (i: Island) => void; stages?: Partial<Record<IslandId, IslandStage>> }) {
   const shown = picks.map((id) => ISLANDS.find((i) => i.id === id)!).filter(Boolean)
   const slot = SLOTS[Math.min(Math.max(shown.length, 1), 6)]
   const H = slot.h
@@ -234,13 +265,14 @@ export function WorldMap({ picks, current, onPick, levels = {} }: { picks: Islan
       {shown.map((isl, i) => {
         const [x, y] = pos(i)
         const active = isl.id === current
+        const st = stages[isl.id]
         return (
           <g
             key={isl.id}
             transform={`translate(${x} ${y})`}
             role="button"
             tabIndex={0}
-            aria-label={`${isl.name}, level ${levels[isl.id] ?? 1}. Open world`}
+            aria-label={`${isl.name}: stage ${stages[isl.id]?.n ?? 1}, ${stages[isl.id]?.name ?? ''}. Open`}
             onClick={() => onPick(isl)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -255,16 +287,28 @@ export function WorldMap({ picks, current, onPick, levels = {} }: { picks: Islan
             <ellipse cx={0} cy={-1} rx={42} ry={17} fill="url(#isl-grass)" />
             <Landmark id={isl.id} />
             {active && <ellipse cx={0} cy={4} rx={56} ry={27} fill="none" stroke="#FFC93C" strokeWidth={3} strokeDasharray="6 5" />}
-            <g transform="translate(0 34)">
-              <rect x={-54} y={-11} width={108} height={22} rx={11} fill="#17153A" opacity={0.92} />
-              <text x={0} y={4.5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#fff" fontFamily="Fredoka Variable, sans-serif">
+            <g transform="translate(0 40)">
+              <rect x={-62} y={-13} width={124} height={st ? 40 : 24} rx={12} fill="#17153A" opacity={0.94} />
+              <text x={0} y={3} textAnchor="middle" fontSize={12} fontWeight={700} fill="#fff" fontFamily="Fredoka Variable, sans-serif">
                 {isl.name}
               </text>
+              {st && (
+                <>
+                  <text x={0} y={16} textAnchor="middle" fontSize={9.5} fontWeight={700} fill="#FFC93C" fontFamily="Fredoka Variable, sans-serif">
+                    {st.name.length > 22 ? `${st.name.slice(0, 21)}…` : st.name}
+                  </text>
+                  <rect x={-48} y={21} width={96} height={4} rx={2} fill="#ffffff" opacity={0.2} />
+                  <rect x={-48} y={21} width={Math.max(4, 96 * st.within)} height={4} rx={2} fill="#22C58B" />
+                </>
+              )}
             </g>
-            <g transform="translate(40 -24)">
-              <circle r={12} fill="#FFC93C" stroke="#17153A" strokeWidth={2} />
-              <text y={4.5} textAnchor="middle" fontSize={12} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif">
-                {levels[isl.id] ?? 1}
+            <g transform="translate(42 -26)">
+              <circle r={15} fill="#FFC93C" stroke="#17153A" strokeWidth={2} />
+              <text y={-3} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif" letterSpacing={0.4}>
+                STAGE
+              </text>
+              <text y={10} textAnchor="middle" fontSize={14} fontWeight={700} fill="#17153A" fontFamily="Fredoka Variable, sans-serif">
+                {st?.n ?? 1}
               </text>
             </g>
           </g>
