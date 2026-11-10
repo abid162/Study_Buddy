@@ -338,3 +338,142 @@ export function Stars({ n, of = 3 }: { n: number; of?: number }) {
     </span>
   )
 }
+
+/* ---------------- Stage road (one world's 8 stages as islands on the sea) ---------------- */
+
+const STAGE_SPOTS: [number, number][] = [
+  [96, 488],
+  [262, 428],
+  [100, 368],
+  [262, 308],
+  [100, 248],
+  [262, 188],
+  [100, 128],
+  [262, 68],
+]
+
+/**
+ * A world's stage ladder drawn as a road of small islands, stage 1 at the bottom.
+ * `marker` (the child's avatar) sits on the current stage. `within` (0 to 1) shows how far along the road to the next stage.
+ */
+export function StageMap({ world, names, index, within, marker, onStage }: { world: IslandId; names: string[]; index: number; within: number; marker?: React.ReactNode; onStage?: (i: number) => void }) {
+  const tint = ISLANDS.find((i) => i.id === world)!.tint
+  const H = 540
+  const path = STAGE_SPOTS.map(([x, y], i) => {
+    if (i === 0) return `M${x} ${y}`
+    const [px, py] = STAGE_SPOTS[i - 1]!
+    const my = (py + y) / 2
+    return `C${px} ${my} ${x} ${my} ${x} ${y}`
+  }).join(' ')
+  // the road travelled so far: whole stages plus the part towards the next one
+  const seg = (i: number) => {
+    const [px, py] = STAGE_SPOTS[i]!
+    const [x, y] = STAGE_SPOTS[i + 1]!
+    const my = (py + y) / 2
+    return { px, py, x, y, my }
+  }
+  const done = STAGE_SPOTS.slice(0, index + 1)
+    .map(([x, y], i) => {
+      if (i === 0) return `M${x} ${y}`
+      const s = seg(i - 1)
+      return `C${s.px} ${s.my} ${s.x} ${s.my} ${s.x} ${s.y}`
+    })
+    .join(' ')
+  const [cx, cy] = STAGE_SPOTS[index]!
+  const nextSpot = STAGE_SPOTS[index + 1]
+  // a point part-way to the next stage (straight-line estimate is close enough for the walker)
+  const wx = nextSpot ? cx + (nextSpot[0] - cx) * within : cx
+  const wy = nextSpot ? cy + (nextSpot[1] - cy) * within : cy
+  // the avatar stands on the outer side of the island, away from the stage names
+  const side = (x: number) => (x < 180 ? -1 : 1)
+  const off = nextSpot ? side(cx) + (side(nextSpot[0]) - side(cx)) * within : side(cx)
+  const ax = wx + off * 46
+  const ay = wy - 10
+  return (
+    <svg viewBox={`0 0 360 ${H}`} className="h-auto w-full" role="group" aria-label={`Stages: you are on stage ${index + 1}, ${names[index]}`}>
+      <defs>
+        <linearGradient id="sea2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#7CC7FF" />
+          <stop offset="100%" stopColor="#3E8EF0" />
+        </linearGradient>
+        <clipPath id="sea2-clip">
+          <rect width={360} height={H} rx={28} />
+        </clipPath>
+      </defs>
+      <g clipPath="url(#sea2-clip)">
+        <rect width={360} height={H} fill="url(#sea2)" />
+        <g opacity={0.35} fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round">
+          {[[30, 40], [300, 120], [170, 230], [24, 330], [310, 380], [180, 470], [60, 520], [300, 500]].map(([x, y], i) => (
+            <path key={i} d={`M${x} ${y} q6 -5 12 0 t12 0`} />
+          ))}
+        </g>
+      </g>
+      <path d={path} fill="none" stroke="#fff" strokeOpacity={0.75} strokeWidth={5} strokeDasharray="2 10" strokeLinecap="round" />
+      <path d={done} fill="none" stroke="#FFC93C" strokeWidth={6} strokeLinecap="round" />
+      {nextSpot && <line x1={cx} y1={cy} x2={wx} y2={wy} stroke="#FFC93C" strokeWidth={6} strokeLinecap="round" />}
+
+      {STAGE_SPOTS.map(([x, y], i) => {
+        const isDone = i < index
+        const now = i === index
+        const left = x < 180
+        const name = names[i] ?? ''
+        const label = `${i + 1} · ${name}`
+        const w = Math.min(170, 26 + label.length * 6.2)
+        return (
+          <g
+            key={i}
+            transform={`translate(${x} ${y})`}
+            role={onStage ? 'button' : undefined}
+            tabIndex={onStage ? 0 : undefined}
+            aria-label={`Stage ${i + 1}: ${name}${isDone ? ', done' : now ? ', you are here' : ', locked'}`}
+            onClick={onStage ? () => onStage(i) : undefined}
+            style={onStage ? { cursor: 'pointer' } : undefined}
+          >
+            <ellipse cx={0} cy={7} rx={now ? 36 : 30} ry={now ? 15 : 12} fill="#1F5FB8" opacity={0.3} />
+            <ellipse cx={0} cy={2} rx={now ? 36 : 30} ry={now ? 15 : 12} fill={isDone || now ? '#FFE3A3' : '#E1E5F2'} stroke="#17153A" strokeWidth={2} />
+            <ellipse cx={0} cy={-1} rx={now ? 29 : 24} ry={now ? 10 : 8} fill={isDone || now ? '#4CC46E' : '#C5CAE6'} />
+            {/* stage marker: flag when done, trophy when current, lock when ahead */}
+            {isDone ? (
+              <g>
+                <line x1={0} y1={-2} x2={0} y2={-30} stroke="#17153A" strokeWidth={2.5} />
+                <path d="M0 -30 h18 l-5 6 l5 6 h-18 z" fill={tint[0]} stroke="#17153A" strokeWidth={2} />
+                <path d="M4 -24 l3 3 l6 -6" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+              </g>
+            ) : now ? (
+              <g transform="translate(0 -14)">
+                <path d="M-11 -16 h22 v8 a11 11 0 0 1 -22 0 z" fill="#FFC93C" stroke="#17153A" strokeWidth={2} />
+                <path d="M-3 3 h6 v4 h5 v4 h-16 v-4 h5 z" fill="#FFC93C" stroke="#17153A" strokeWidth={2} strokeLinejoin="round" />
+              </g>
+            ) : (
+              <g transform="translate(0 -12)">
+                <rect x={-8} y={-6} width={16} height={13} rx={3} fill="#8A88AD" stroke="#17153A" strokeWidth={1.5} />
+                <path d="M-5 -6 v-4 a5 5 0 0 1 10 0 v4" fill="none" stroke="#17153A" strokeWidth={2} />
+              </g>
+            )}
+            {/* name label, on the open side of the island */}
+            <g transform={`translate(${left ? 44 : -44 - w} -10)`}>
+              <rect width={w} height={24} rx={12} fill={now ? '#FFC93C' : '#17153A'} opacity={now ? 1 : isDone ? 0.92 : 0.6} />
+              <text x={w / 2} y={16} textAnchor="middle" fontSize={11} fontWeight={700} fill={now ? '#17153A' : '#fff'} fontFamily="Fredoka Variable, sans-serif">
+                {label}
+              </text>
+            </g>
+          </g>
+        )
+      })}
+
+      {/* the child, walking towards the next stage */}
+      {marker && (
+        <motion.g initial={false} animate={{ x: ax, y: ay }} transition={{ type: 'spring', stiffness: 120, damping: 16 }}>
+          <motion.g animate={{ y: [0, -5, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}>
+            <g transform="translate(-22 -22)">
+              <circle cx={22} cy={22} r={23} fill="#fff" stroke="#FFC93C" strokeWidth={3.5} />
+              <foreignObject x={3} y={3} width={38} height={38}>
+                {marker}
+              </foreignObject>
+            </g>
+          </motion.g>
+        </motion.g>
+      )}
+    </svg>
+  )
+}

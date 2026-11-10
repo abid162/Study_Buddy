@@ -1,39 +1,39 @@
-import { FOOTBALL_STARS, WRESTLING_STARS } from '../stars'
+import { STARS } from '../stars'
 import { makeRng, pick, type Rng } from '../bank/rng'
 import type { EnCtx } from './types'
 
 interface Actor { name: string; pronoun: 'he' | 'she' }
 interface EnSkin extends Omit<EnCtx, 'actor' | 'actor2' | 'he' | 'his' | 'him'> { actors: Actor[] }
 
-/** Football and wrestling names come from src/data/stars.ts, so renaming a star updates English too. */
+/** Every world's names come from src/data/stars.ts, so renaming a star updates English too. */
 const fromStars = (list: { name: string; pronoun: 'he' | 'she' }[]): Actor[] => list.map((s) => ({ name: s.name, pronoun: s.pronoun }))
 
 export const EN_SKINS: EnSkin[] = [
   {
-    world: 'football', actors: fromStars(FOOTBALL_STARS), place: 'the stadium', crowd: 'fans', event: 'the match', team: 'Stadium FC',
+    world: 'football', actors: fromStars(STARS.football), place: 'the stadium', crowd: 'fans', event: 'the match', team: 'Stadium FC',
     win: 'scored the winning goal', move: 'raced down the wing', thing: 'football', things: 'boots', speaker: 'the coach',
   },
   {
-    world: 'wrestling', actors: fromStars(WRESTLING_STARS), place: 'the arena', crowd: 'fans', event: 'the title match', team: 'the tag team',
+    world: 'wrestling', actors: fromStars(STARS.wrestling), place: 'the arena', crowd: 'fans', event: 'the title match', team: 'the tag team',
     win: 'won the championship belt', move: 'leapt off the top rope', thing: 'belt', things: 'posters', speaker: 'the ring announcer',
   },
   {
-    world: 'music', actors: [{ name: 'Luna', pronoun: 'she' }, { name: 'Ziggy', pronoun: 'he' }, { name: 'Melody', pronoun: 'she' }, { name: 'Jay', pronoun: 'he' }],
+    world: 'music', actors: fromStars(STARS.music),
     place: 'the stage', crowd: 'fans', event: 'the concert', team: 'the band', win: 'sang the final song', move: 'danced across the stage',
     thing: 'microphone', things: 'guitars', speaker: 'the singer',
   },
   {
-    world: 'story', actors: [{ name: 'Pip', pronoun: 'he' }, { name: 'Willow', pronoun: 'she' }, { name: 'Fern', pronoun: 'she' }, { name: 'Rowan', pronoun: 'he' }],
+    world: 'story', actors: fromStars(STARS.story),
     place: 'the forest', crowd: 'villagers', event: 'the quest', team: 'the explorers', win: 'found the hidden treasure', move: 'crept through the trees',
     thing: 'lantern', things: 'maps', speaker: 'the wise owl',
   },
   {
-    world: 'bricks', actors: [{ name: 'Builder Bo', pronoun: 'he' }, { name: 'Brick Betty', pronoun: 'she' }, { name: 'Architect Ade', pronoun: 'he' }, { name: 'Tiny Tia', pronoun: 'she' }],
+    world: 'bricks', actors: fromStars(STARS.bricks),
     place: 'Brick City', crowd: 'visitors', event: 'the big build', team: 'the builders', win: 'finished the tallest tower', move: 'stacked the bricks',
     thing: 'crane', things: 'bricks', speaker: 'the architect',
   },
   {
-    world: 'space', actors: [{ name: 'Commander Ada', pronoun: 'she' }, { name: 'Cadet Juno', pronoun: 'she' }, { name: 'Pilot Kit', pronoun: 'he' }, { name: 'Dr Orbit', pronoun: 'he' }],
+    world: 'space', actors: fromStars(STARS.space),
     place: 'the space station', crowd: 'visitors', event: 'the launch', team: 'the crew', win: 'landed on the Moon', move: 'floated through the airlock',
     thing: 'helmet', things: 'rockets', speaker: 'mission control',
   },

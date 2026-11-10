@@ -190,3 +190,89 @@ export function TeamPicker({ open, onClose }: { open: boolean; onClose: () => vo
     </AnimatePresence>
   )
 }
+
+/** Live stage tracker for the question screen (phones and tablets): the child walks from this stage to the next as they answer. */
+export function StageStrip({ world, info, avatar }: { world: IslandId; info: Info; avatar: React.ReactNode }) {
+  const p = info.next ? info.within : 1
+  return (
+    <div className="mx-auto w-full max-w-[1160px] px-4 pb-3 sm:px-6 lg:hidden" aria-label={`Stage ${info.index + 1}, ${info.stage.name}. ${info.next ? `${info.needed} more to ${info.next.name}` : 'Top stage'}`}>
+      <div className="mb-1 flex items-center justify-between gap-3 text-xs font-bold">
+        <span className="truncate text-sun">
+          Stage {info.index + 1} · {info.stage.name}
+        </span>
+        <span className="shrink-0 text-white/75">{info.next ? `${info.needed} to ${info.next.name}` : 'Champion!'}</span>
+      </div>
+      <div className="relative h-8">
+        <div className="absolute inset-x-4 top-1/2 h-2.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/15">
+          <motion.div className="h-full rounded-full bg-gradient-to-r from-sun to-mint" initial={false} animate={{ width: `${p * 100}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} />
+        </div>
+        <motion.span
+          className="absolute top-0 h-8 w-8 -translate-x-1/2 overflow-hidden rounded-full bg-white ring-2 ring-sun"
+          initial={false}
+          animate={{ left: `calc(1rem + (100% - 2rem) * ${p})` }}
+          transition={{ type: 'spring', stiffness: 90, damping: 18 }}
+          aria-hidden
+        >
+          {avatar}
+        </motion.span>
+        <span className="absolute right-0 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-sun text-ink" aria-hidden>
+          <Trophy size={15} />
+        </span>
+      </div>
+      <span className="sr-only">{STAGES[world].title}</span>
+    </div>
+  )
+}
+
+/** Live stage ladder for the question screen (desktop side column): the child climbs as they answer. */
+export function StageClimb({ world, info, avatar }: { world: IslandId; info: Info; avatar: React.ReactNode }) {
+  const tint = islandById(world).tint
+  const n = info.list.length
+  const ROW = 52
+  // position on the ladder, 0 = first stage, n-1 = top
+  const at = info.index + (info.next ? info.within : 0)
+  return (
+    <section className="card p-5" aria-label={`${STAGES[world].title}: stage ${info.index + 1} of ${n}`}>
+      <p className="text-sm font-bold text-ink-soft">{STAGES[world].title}</p>
+      <p className="font-display text-xl font-semibold leading-tight">{info.stage.name}</p>
+      <p className="text-sm text-ink-soft">{info.next ? `${info.needed} more ${info.needed === 1 ? 'answer' : 'answers'} to ${info.next.name}` : 'Top of the ladder!'}</p>
+      <div className="relative mt-4" style={{ height: ROW * (n - 1) + 36 }}>
+        {/* rail */}
+        <span className="absolute bottom-[18px] left-[17px] top-[18px] w-1.5 -translate-x-1/2 rounded-full bg-mist-deep" aria-hidden />
+        <motion.span
+          className="absolute bottom-[18px] left-[17px] w-1.5 -translate-x-1/2 rounded-full"
+          style={{ background: tint[0] }}
+          initial={false}
+          animate={{ height: at * ROW }}
+          transition={{ type: 'spring', stiffness: 90, damping: 18 }}
+          aria-hidden
+        />
+        {info.list.map((s, i) => {
+          const done = i < info.index
+          const now = i === info.index
+          return (
+            <div key={s.name} className="absolute left-0 right-0 flex items-center gap-3" style={{ bottom: i * ROW }}>
+              <span
+                className={`relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold ${done || now ? 'text-white' : 'bg-mist-deep text-ink-faint'}`}
+                style={done || now ? { background: tint[0] } : undefined}
+              >
+                {done ? <Check size={16} strokeWidth={3} aria-hidden /> : now ? <Trophy size={16} aria-hidden /> : <Lock size={14} aria-hidden />}
+              </span>
+              <span className={`min-w-0 truncate pl-8 text-sm ${now ? 'font-bold text-ink' : done ? 'font-bold text-ink-soft' : 'text-ink-faint'}`}>{s.name}</span>
+            </div>
+          )
+        })}
+        {/* the child, climbing */}
+        <motion.span
+          className="absolute left-[40px] z-20 h-9 w-9 overflow-hidden rounded-full bg-white shadow-card ring-2 ring-sun"
+          initial={false}
+          animate={{ bottom: at * ROW }}
+          transition={{ type: 'spring', stiffness: 90, damping: 18 }}
+          aria-hidden
+        >
+          {avatar}
+        </motion.span>
+      </div>
+    </section>
+  )
+}

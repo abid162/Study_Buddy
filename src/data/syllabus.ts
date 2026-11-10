@@ -2,7 +2,7 @@ import { ALL_TEMPLATES, SKINS, withActors, render, seedsFor, type Question, type
 import type { Template } from './bank/types'
 import { MATHS_STATEMENTS } from './curriculum.maths'
 import { ENGLISH_BY_YEAR, renderEn, type EnItem } from './english'
-import { FOOTBALL_STARS, WRESTLING_STARS } from './stars'
+import { STARS } from './stars'
 import type { IslandId } from './world'
 
 /**
@@ -67,12 +67,10 @@ function mathsTopics(year: Year): Topic[] {
   return topics
 }
 
-/** Football and wrestling questions use the star cast from stars.ts. */
+/** Every world's questions use its star cast from stars.ts. */
 function skinFor(world: IslandId) {
   const base = SKINS.find((s) => s.id === world) ?? SKINS[0]!
-  if (world === 'football') return withActors(base, FOOTBALL_STARS.map((s) => s.name))
-  if (world === 'wrestling') return withActors(base, WRESTLING_STARS.map((s) => s.name))
-  return base
+  return withActors(base, (STARS[world] ?? []).map((s) => s.name))
 }
 
 const seedCache = new Map<string, number[]>()

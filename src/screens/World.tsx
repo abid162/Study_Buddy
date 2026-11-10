@@ -7,7 +7,7 @@ import { useProfile } from '../data/profile'
 import { domainName, syllabus, type QuestDef, type Subject, type Year } from '../data/syllabus'
 import { JOURNEYS } from '../data/journeys'
 import { STAGES, stageInfo } from '../data/stages'
-import { FootballBoards, StageLadder, StageTrack, TeamPicker } from '../components/journey'
+import { FootballBoards, TeamPicker } from '../components/journey'
 import { isDone, nextQuest, starsFor, useProgress, worldStats, type QuestProgress } from '../data/progress'
 
 /** Zig-zag offsets (px) for the stepping stones, repeating. */
@@ -60,46 +60,29 @@ export function World({ world, onBack, onPlay }: { world: IslandId; onBack: () =
         </div>
       </header>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 px-4 pt-5 sm:px-8 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
+      <div className={`grid grid-cols-[minmax(0,1fr)] gap-6 px-4 pt-5 sm:px-8 lg:items-start ${world === 'football' ? 'lg:grid-cols-[minmax(0,1fr)_330px]' : 'mx-auto max-w-[760px]'}`}>
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5">
-          {/* stage card (phones and tablets; the ladder sits in the side column on desktop) */}
-          <section className="card p-4 lg:hidden" aria-label={`${STAGES[world].title}: your stage`}>
-            <div className="flex items-center gap-3">
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white shadow-pop" style={{ background: tint }}>
-                <span className="text-center leading-none">
-                  <span className="block text-[10px] font-bold uppercase tracking-wide opacity-85">Stage</span>
-                  <span className="block font-display text-2xl font-semibold">{info.index + 1}</span>
-                </span>
+          {/* compact stage bar: the full stage road lives on Home and in the question screen */}
+          <section className="card flex items-center gap-3 p-3" aria-label={`${STAGES[world].title}: stage ${info.index + 1}, ${info.stage.name}`}>
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: tint }}>
+              <span className="text-center leading-none">
+                <span className="block text-[9px] font-bold uppercase tracking-wide opacity-85">Stage</span>
+                <span className="block font-display text-xl font-semibold">{info.index + 1}</span>
               </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-ink-soft">{STAGES[world].title}</p>
-                <p className="truncate font-display text-xl font-semibold leading-tight">{info.stage.name}</p>
-                <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-mist-deep">
-                  <motion.div className="h-full rounded-full" style={{ background: tint }} initial={{ width: 0 }} animate={{ width: `${Math.max(3, (info.next ? info.within : 1) * 100)}%` }} />
-                </div>
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="truncate font-display text-lg font-semibold leading-tight">{info.stage.name}</p>
+                <p className="shrink-0 text-xs font-bold text-ink-soft">{info.next ? `${info.needed} to ${info.next.name}` : 'Champion!'}</p>
               </div>
-            </div>
-            <p className="mt-2 text-sm text-ink-soft">
-              {info.next ? (
-                <>
-                  <span className="font-bold text-ink">{info.needed}</span> more {info.needed === 1 ? 'answer' : 'answers'} to reach <span className="font-bold text-ink">{info.next.name}</span>
-                </>
-              ) : (
-                'Top of the ladder. Champion!'
-              )}
-            </p>
-            <div className="mt-2">
-              <StageTrack world={world} info={info} />
+              <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-mist-deep">
+                <motion.div className="h-full rounded-full" style={{ background: tint }} initial={{ width: 0 }} animate={{ width: `${Math.max(3, (info.next ? info.within : 1) * 100)}%` }} />
+              </div>
             </div>
             {world === 'football' && (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => (profile?.team ? setBoardsOpen(true) : setTeamOpen(true))} className="btn btn-ghost min-h-[48px] px-3 text-base">
-                  <Table2 size={18} aria-hidden /> {profile?.team ? 'League table' : 'Pick team'}
-                </button>
-                <button type="button" onClick={() => setTeamOpen(true)} className="btn btn-ghost min-h-[48px] px-3 text-base">
-                  <Shirt size={18} aria-hidden /> <span className="truncate">{profile?.team ?? 'Your team'}</span>
-                </button>
-              </div>
+              <button type="button" onClick={() => (profile?.team ? setBoardsOpen(true) : setTeamOpen(true))} aria-label={profile?.team ? 'League table' : 'Pick your team'} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-mist text-ink lg:hidden">
+                {profile?.team ? <Table2 size={22} aria-hidden /> : <Shirt size={22} aria-hidden />}
+              </button>
             )}
           </section>
 
@@ -176,8 +159,8 @@ export function World({ world, onBack, onPlay }: { world: IslandId; onBack: () =
         </div>
 
         {/* desktop side column */}
+        {world === 'football' && (
         <aside className="hidden gap-5 lg:sticky lg:top-6 lg:grid">
-          <StageLadder world={world} info={info} />
           {world === 'football' &&
             (profile?.team ? (
               <>
@@ -192,6 +175,7 @@ export function World({ world, onBack, onPlay }: { world: IslandId; onBack: () =
               </button>
             ))}
         </aside>
+        )}
       </div>
 
       <QuestSheet

@@ -5,11 +5,12 @@ import { Buddy, Photo, Stars, type Mood } from '../components/art'
 import { islandById, type IslandId } from '../data/world'
 import { useProfile } from '../data/profile'
 import { BuddyDuo, ChildAvatar } from '../components/avatar'
-import { FOOTBALL_STARS, WRESTLING_STARS, type Star } from '../data/stars'
+import { STARS, type Star } from '../data/stars'
 import { allQuests, findQuest, questQuestions, type QuestDef, type Subject, type TutorQ, type Year } from '../data/syllabus'
 import { JOURNEYS } from '../data/journeys'
 import { isDone, starsFor, useProgress, worldStats } from '../data/progress'
 import { STAGES, stageInfo } from '../data/stages'
+import { StageClimb, StageStrip } from '../components/journey'
 import { checkAnswer } from '../data/bank'
 import { checkEn } from '../data/english/mark'
 import { markEnglish } from '../data/ai'
@@ -41,7 +42,7 @@ function Confetti({ run }: { run: number }) {
 
 /* ---------------- helpers ---------------- */
 
-const CAST: Partial<Record<IslandId, Star[]>> = { football: FOOTBALL_STARS, wrestling: WRESTLING_STARS }
+const CAST: Partial<Record<IslandId, Star[]>> = STARS
 const starIn = (world: IslandId, text: string) => CAST[world]?.find((s) => text.includes(s.name))
 const textOf = (t: TutorQ) => (t.kind === 'maths' ? t.q.text : `${t.q.extract ?? ''} ${t.q.prompt}`)
 const hintsOf = (t: TutorQ) => t.q.hints
@@ -342,6 +343,10 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   ]
   const finalP = progress.get(world, questId)
   const total = QS.length
+  // live stage position: moves after every answer
+  const liveStats = worldStats(progress.world(world), year)
+  const live = stageInfo(world, liveStats.answered, liveStats.questions)
+  const me = <ChildAvatar data={profile?.avatar} className="h-full w-full" />
 
   return (
     <div className="flex h-dvh flex-col bg-mist lg:h-auto lg:min-h-dvh">
@@ -363,6 +368,7 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
             <Gem size={16} className="text-sea-soft" aria-hidden /> <span className="tabular">{progress.gems}</span>
           </motion.span>
         </div>
+        <StageStrip world={world} info={live} avatar={me} />
       </header>
 
       <div className="mx-auto flex min-h-0 w-full max-w-[1160px] flex-1 gap-6 lg:px-6 lg:py-6">
@@ -525,25 +531,11 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
           </div>
         </section>
 
-        <aside className="hidden w-[300px] shrink-0 flex-col gap-5 lg:flex" aria-label="Quest progress">
-          <div className="card grid place-items-center p-6 text-center">
-            <BuddyDuo data={profile?.avatar} mood={solved ? 'cheer' : hint > 0 ? 'think' : 'happy'} size="lg" name={childName} />
-            <p className="mt-3 font-display text-xl font-semibold">{`${childName} & Nova`}</p>
-            <p className="text-ink-soft">{solved ? 'You did it!' : busy ? 'Reading your answer…' : hint > 0 ? 'Thinking it through with you.' : 'Here if you need a hint.'}</p>
-          </div>
-          <div className="card p-5">
-            <p className="font-display text-lg font-semibold">Hint ladder</p>
-            <ol className="mt-3 grid gap-2">
-              {['A nudge', 'The method', 'Step by step'].map((t, i) => (
-                <li key={t} className={`flex items-center gap-3 rounded-2xl p-2.5 ${i < hint ? 'bg-sun-soft' : 'bg-mist'}`}>
-                  <span className={`grid h-8 w-8 place-items-center rounded-xl text-sm font-bold ${i < hint ? 'bg-sun text-ink' : 'bg-paper text-ink-faint'}`}>{i + 1}</span>
-                  <span className={i < hint ? 'font-bold' : 'text-ink-soft'}>{t}</span>
-                </li>
-              ))}
-            </ol>
-            <p className="mt-3 text-sm text-ink-soft">
-              {subject === 'maths' ? 'Every maths answer is checked by maths rules, not guessed by AI.' : 'Spelling, grammar and choice answers are checked by rules. Nova’s AI helper reads longer written answers.'}
-            </p>
+        <aside className="hidden w-[300px] shrink-0 flex-col gap-5 lg:flex" aria-label="Your stage">
+          <StageClimb world={world} info={live} avatar={me} />
+          <div className="card flex items-center gap-4 p-4">
+            <BuddyDuo data={profile?.avatar} mood={solved ? 'cheer' : hint > 0 ? 'think' : 'happy'} name={childName} />
+            <p className="text-sm text-ink-soft">{solved ? 'You did it!' : busy ? 'Reading your answer…' : hint > 0 ? 'Thinking it through with you.' : 'Stuck? Tap “Give me a hint”.'}</p>
           </div>
         </aside>
       </div>
