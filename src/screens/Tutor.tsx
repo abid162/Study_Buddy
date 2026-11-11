@@ -13,6 +13,8 @@ import { isDone, starsFor, useProgress, worldStats } from '../data/progress'
 import { STAGES, stageInfo } from '../data/stages'
 import { StageClimb, StageStrip } from '../components/journey'
 import { checkAnswer } from '../data/bank'
+import { fmtPoint, type Pt } from '../data/bank/diagram'
+import { Diagram } from '../components/Diagram'
 import { checkEn } from '../data/english/mark'
 import { markEnglish } from '../data/ai'
 import { ENGLISH_BY_YEAR } from '../data/english'
@@ -67,7 +69,12 @@ const starIn = (world: IslandId, text: string) => CAST[world]?.find((s) => text.
 const textOf = (t: TutorQ) => (t.kind === 'maths' ? t.q.text : `${t.q.extract ?? ''} ${t.q.prompt}`)
 const hintsOf = (t: TutorQ) => t.q.hints
 const answerOf = (t: TutorQ) =>
-  t.kind === 'maths' ? t.q.answer.toLocaleString('en-GB', { maximumFractionDigits: 3 }) : t.q.kind === 'open' ? (t.q.model ?? '') : t.q.kind === 'text' ? (t.q.accept ?? [])[0]! : (t.q.answer ?? '')
+  t.kind === 'maths'
+    ? t.q.choices
+      ? t.q.choices[t.q.answer]!
+      : t.q.pick
+        ? fmtPoint(t.q.answer)
+        : t.q.answer.toLocaleString('en-GB', { maximumFractionDigits: 3 }) : t.q.kind === 'open' ? (t.q.model ?? '') : t.q.kind === 'text' ? (t.q.accept ?? [])[0]! : (t.q.answer ?? '')
 
 function speak(text: string) {
   try {
@@ -159,6 +166,8 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   const [solved, setSolved] = useState(false)
   const [busy, setBusy] = useState(false)
   const [value, setValue] = useState('')
+  /** tap-the-grid answer for the current question */
+  const [picked, setPicked] = useState<Pt | null>(null)
   const [confetti, setConfetti] = useState(0)
   const [gain, setGain] = useState({ k: 0, n: 0 })
   const firstTry = useRef(saved && !isDone(saved) ? saved.firstTry : 0)
@@ -319,18 +328,20 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
     }
   }
 
-  const submit = (raw: string) => {
+  const submit = (raw: string, shown?: string) => {
     if (solved || busy || !cur) return
     const a = raw.trim()
     if (!a) {
+      if (cur.kind === 'maths' && cur.q.pick) return miss('Tap a point on the grid first, then press Check.')
       inputRef.current?.focus()
       return
     }
     setValue('')
-    setMsgs((c) => [...c, { id: nextId(), from: 'child', text: a }])
+    setPicked(null)
+    setMsgs((c) => [...c, { id: nextId(), from: 'child', text: shown ?? (cur.kind === 'maths' && cur.q.pick ? `(${a.replace(/[()\s]/g, '').replace(',', ', ')})` : a) }])
     if (cur.kind === 'maths') {
       const r = checkAnswer(cur.q, a)
-      if (!r.valid) return miss('That doesn’t look like a number. Type just the number, for example 42 or 7.5.')
+      if (!r.valid) return miss(cur.q.pick ? 'Tap a point on the grid, or type the coordinates like 3, 5.' : 'That doesn’t look like a number. Type just the number, for example 42 or 7.5.')
       if (r.correct) return win(`${answerOf(cur)} is right.`)
       return miss(r.message)
     }
@@ -348,6 +359,8 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   const goNext = () => {
     const ni = idx + 1
     setIdx(ni)
+    setPicked(null)
+    setValue('')
     setHint(0)
     setMisses(0)
     setSolved(false)
@@ -355,7 +368,9 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   }
 
   const isSpell = cur?.kind === 'english' && cur.q.kind === 'spell'
-  const isChoice = cur?.kind === 'english' && cur.q.kind === 'choice'
+  const isChoice = (cur?.kind === 'english' && cur.q.kind === 'choice') || (cur?.kind === 'maths' && !!cur.q.choices)
+  const choiceList = cur?.kind === 'maths' ? (cur.q.choices ?? []) : cur?.kind === 'english' ? (cur.q.options ?? []) : []
+  const isPick = cur?.kind === 'maths' && !!cur.q.pick
   const isOpen = cur?.kind === 'english' && cur.q.kind === 'open'
   const canReveal = hint >= 3 || misses >= 2
   const chips = [
@@ -454,7 +469,7 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
                       </div>
                     </div>
                   )}
-                  {m.from === 'card' && QS[m.index] && <QuestionCard t={QS[m.index]!} n={m.index} total={total} world={world} year={year} subject={subject} statement={statement} photo={photoStart + m.index} />}
+                  {m.from === 'card' && QS[m.index] && <QuestionCard t={QS[m.index]!} n={m.index} total={total} world={world} year={year} subject={subject} statement={statement} photo={photoStart + m.index} picked={m.index === idx && !solved ? picked : null} onPick={m.index === idx && !solved ? (p) => { setPicked(p); setValue(`${p[0]},${p[1]}`) } : undefined} />}
                   {m.from === 'next' && (
                     <div className="flex flex-wrap gap-3 pl-14">
                       <button type="button" className={`btn btn-sun flex-1 basis-full whitespace-nowrap px-4 sm:basis-0 ${idx === m.index ? 'sheen' : ''}`} onClick={goNext} disabled={idx !== m.index}>
@@ -534,13 +549,13 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
                   </button>
                 ))}
               </div>
-              {isChoice && cur?.kind === 'english' && !solved ? (
+              {isChoice && !solved ? (
                 <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Choose an answer">
-                  {(cur.q.options ?? []).map((o, oi) => (
+                  {choiceList.map((o, oi) => (
                     <motion.button
                       key={o}
                       type="button"
-                      onClick={() => submit(o)}
+                      onClick={() => (cur?.kind === 'maths' ? submit(String(oi), o) : submit(o))}
                       disabled={busy}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -557,7 +572,7 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
                   <label htmlFor="answer" className="sr-only">
                     Your answer
                   </label>
-                  {cur?.kind === 'maths' && !solved && (
+                  {cur?.kind === 'maths' && !solved && !isPick && (
                     <button
                       type="button"
                       onClick={() => setValue((v) => (v.startsWith('-') ? v.slice(1) : `-${v}`))}
@@ -584,13 +599,14 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
                       ref={inputRef}
                       value={value}
                       onChange={(e) => setValue(e.target.value.slice(0, cur?.kind === 'maths' ? 14 : 240))}
-                      inputMode={cur?.kind === 'maths' ? 'decimal' : 'text'}
+                      inputMode={isPick ? 'none' : cur?.kind === 'maths' ? 'decimal' : 'text'}
+                      readOnly={isPick}
                       autoComplete="off"
                       autoCapitalize={isSpell ? 'none' : 'sentences'}
                       autoCorrect="off"
                       spellCheck={false}
                       disabled={solved || busy || !cur}
-                      placeholder={solved ? (idx === total - 1 ? 'Quest complete!' : 'Solved! Tap Next question above') : isSpell ? 'Type the word you hear' : cur?.kind === 'maths' ? 'Type your answer' : 'Type your answer'}
+                      placeholder={solved ? (idx === total - 1 ? 'Quest complete!' : 'Solved! Tap Next question above') : isSpell ? 'Type the word you hear' : isPick ? 'Tap the grid above' : 'Type your answer'}
                       className="min-h-[58px] min-w-0 flex-1 rounded-[20px] border-[2.5px] border-[#CFD4F0] bg-[#F8F9FF] px-4 font-display text-xl font-semibold text-ink placeholder:font-sans placeholder:text-lg placeholder:font-normal placeholder:text-ink-soft focus:border-grape focus:bg-paper focus:shadow-[0_0_0_4px_rgba(124,92,255,0.2)] focus:outline-none disabled:bg-mist"
                     />
                   )}
@@ -616,7 +632,7 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   )
 }
 
-function QuestionCard({ t, n, total, world, year, subject, statement, photo }: { t: TutorQ; n: number; total: number; world: IslandId; year: number; subject: Subject; statement: string; photo: number }) {
+function QuestionCard({ t, n, total, world, year, subject, statement, photo, picked, onPick }: { t: TutorQ; n: number; total: number; world: IslandId; year: number; subject: Subject; statement: string; photo: number; picked?: Pt | null; onPick?: (p: Pt) => void }) {
   const journey = JOURNEYS[world]
   const island = islandById(world)
   const star = starIn(world, textOf(t))
@@ -624,7 +640,7 @@ function QuestionCard({ t, n, total, world, year, subject, statement, photo }: {
   return (
     <article className="overflow-hidden rounded-4xl bg-paper shadow-pop">
       <div className="relative">
-        <Photo island={world} n={photo} credit alt={`${island.name} photo`} className="h-40 sm:h-52" />
+        <Photo island={world} n={photo} credit alt={`${island.name} photo`} className={t.kind === 'maths' && t.q.diagram ? 'h-24 sm:h-32' : 'h-40 sm:h-52'} />
         <div className="absolute inset-0" style={{ background: `linear-gradient(0deg, ${island.tint[1]}E6 0%, ${island.tint[1]}40 45%, transparent 100%)` }} aria-hidden />
         <span className="absolute bottom-3 left-4 inline-flex items-center gap-1.5 rounded-full py-1 pl-1.5 pr-3 font-display text-sm font-semibold text-ink" style={{ background: 'linear-gradient(180deg,#FFD95E,#FFB81F)', boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.6), 0 3px 0 #C98F00' }}>
           <span className="grid h-6 w-6 place-items-center rounded-full bg-white/70">
@@ -658,7 +674,11 @@ function QuestionCard({ t, n, total, world, year, subject, statement, photo }: {
           </p>
         )}
         {t.kind === 'maths' ? (
-          <p className="font-display text-xl font-semibold leading-snug sm:text-2xl">{t.q.text}</p>
+          <>
+            <p className="font-display text-xl font-semibold leading-snug sm:text-2xl">{t.q.text}</p>
+            {t.q.diagram && <Diagram d={t.q.diagram} picked={picked} onPick={onPick} />}
+            {t.q.pick && onPick && <p className="mt-2 text-center text-sm font-bold text-ink-soft">{picked ? `You picked (${picked[0]}, ${picked[1]}). Press Check, or tap again to change it.` : 'Tap a point where the grid lines cross.'}</p>}
+          </>
         ) : (
           <>
             {t.q.extract && t.q.kind !== 'spell' && <Passage text={t.q.extract} />}

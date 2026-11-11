@@ -327,6 +327,12 @@ function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () 
 function QuestSheet({ q, p, world, topic, onClose, onPlay }: { q: QuestDef | null; p?: QuestProgress; world: IslandId; topic: string; onClose: () => void; onPlay: (q: QuestDef) => void }) {
   const island = islandById(world)
   const complete = isDone(p)
+  useEffect(() => {
+    if (!q) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [q, onClose])
   return (
     <AnimatePresence>
       {q && (

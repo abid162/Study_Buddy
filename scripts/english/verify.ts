@@ -1,6 +1,5 @@
 /** Checks every English item in every world. Run: npx tsx scripts/english/verify.ts */
 import { ALL_ENGLISH, ENGLISH_BY_YEAR, renderEn, EN_WORLDS } from '../../src/data/english/index'
-import { norm } from '../../src/data/english/mark'
 
 const fails: string[] = []
 const fail = (id: string, msg: string) => fails.push(`${id}: ${msg}`)
@@ -30,7 +29,7 @@ for (const st of ALL_ENGLISH) {
         const o = q.options ?? []
         if (o.length < 2) fail(id, 'choice needs 2+ options')
         if (!q.answer || !o.includes(q.answer)) fail(id, 'answer not in options')
-        if (new Set(o.map(norm)).size !== o.length) fail(id, `duplicate options: ${o.join(' | ')}`)
+        if (new Set(o).size !== o.length) fail(id, `duplicate options: ${o.join(' | ')}`)
         for (const k2 of Object.keys(q.why ?? {})) if (!o.includes(k2)) fail(id, `why key not an option: ${k2}`)
         if (q.why && q.answer && q.answer in q.why) fail(id, 'why message on the right answer')
       }

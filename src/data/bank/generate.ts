@@ -1,3 +1,4 @@
+import { encodePoint } from './diagram';
 import type { Template, Skin, Question, Level, Ctx } from './types';
 import { makeRng, pick } from './rng';
 import { SKINS } from './skins';
@@ -22,6 +23,7 @@ export function render(t: Template, level: Level, seed: number, skin: Skin): (Qu
   return {
     id: `${coreId}@${skin.id}`, coreId, templateId: t.id, curriculumId: t.curriculumId, year: t.year,
     level, world: skin.id, text: d.text, answer: d.answer, hints: d.hints, mistakes, params: d.params, alt: d.alt,
+    ...(d.diagram ? { diagram: d.diagram } : {}), ...(d.choices ? { choices: d.choices } : {}), ...(d.pick ? { pick: true } : {}),
   };
 }
 
@@ -59,7 +61,10 @@ export interface AnswerResult {
 }
 
 /** Check what the child typed. Accepts 7.5, 7.50, £7.50, 1,250 and the minus sign. */
-export function checkAnswer(q: Pick<Question, 'answer' | 'mistakes'>, typed: string): AnswerResult {
+export function checkAnswer(q: Pick<Question, 'answer' | 'mistakes' | 'pick'>, typed: string): AnswerResult {
+  // tap-the-grid answers arrive as "x,y"
+  const pt = q.pick ? typed.replace(/[\u2212\u2013]/g, '-').match(/^\(?\s*(-?\d+)\s*,\s*(-?\d+)\s*\)?$/) : null;
+  if (pt) typed = String(encodePoint(Number(pt[1]), Number(pt[2])));
   const cleaned = typed.replace(/[\u2212\u2013]/g, '-').replace(/[£,\s]/g, '');
   if (cleaned === '' || !/^-?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return { valid: false, correct: false };
   const n = Number(cleaned);

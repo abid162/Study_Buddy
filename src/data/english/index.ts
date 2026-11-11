@@ -4,14 +4,15 @@ import { Y4_ENGLISH } from './items.y4'
 import { Y5_ENGLISH } from './items.y5'
 import { Y6_ENGLISH } from './items.y6'
 import { readingStatements } from './reading'
+import { EXTRA } from './extra'
 
 const ORDER = ['Spelling', 'Grammar', 'Punctuation', 'Reading', 'Writing'] as const
 const sortByDomain = (xs: EnStatement[]) => [...xs].sort((a, b) => ORDER.indexOf(a.domain) - ORDER.indexOf(b.domain))
 
 export const ENGLISH_BY_YEAR: Record<4 | 5 | 6, EnStatement[]> = {
-  4: sortByDomain([...Y4_ENGLISH, ...readingStatements(4)]),
-  5: sortByDomain([...Y5_ENGLISH, ...readingStatements(5)]),
-  6: sortByDomain([...Y6_ENGLISH, ...readingStatements(6)]),
+  4: sortByDomain([...Y4_ENGLISH, ...readingStatements(4), ...EXTRA[4]]),
+  5: sortByDomain([...Y5_ENGLISH, ...readingStatements(5), ...EXTRA[5]]),
+  6: sortByDomain([...Y6_ENGLISH, ...readingStatements(6), ...EXTRA[6]]),
 }
 export const ALL_ENGLISH: EnStatement[] = [...ENGLISH_BY_YEAR[4], ...ENGLISH_BY_YEAR[5], ...ENGLISH_BY_YEAR[6]]
 

@@ -1,6 +1,6 @@
 # Study Buddy demo: handover
 
-Last updated: 10 November 2026 (world map with stages back on Home, game-path world screen, sharper photos; earlier: stages, football season, 11 photos per world; earlier the same day: full syllabus, English bank, homework scanner). Owner: Hamza (Cleartwo).
+Last updated: 11 November 2026 (whole Years 4–6 syllabus now covered: all 140 maths statements with drawn diagrams, and new English reading and writing statements; earlier: visual refresh, real star names, stage road, live stage tracker, Supabase plan). Owner: Hamza (Cleartwo).
 
 | Item | Detail |
 | --- | --- |
@@ -36,9 +36,9 @@ A visually impressive demo link to win the client's confidence. It must work on 
 ## What's built
 - **Passcode screen**, **child intake** (name, year 4–6, worlds, avatar) and **app shell** (tab bar on phones, side rail at 1024px+), as before.
 - **Home:** greeting, streak, gems and level (from real progress), "Today's quest" (next maths quest in the first world), then the map card. With several worlds it shows the illustrated island map (each island: STAGE badge, stage name, progress bar); tapping an island turns the card into that world's **stage road**: 8 stage islands on the sea, numbered and named ("3 · US Title"), finished ones with flags, the current one with a trophy and the child's avatar walking towards the next, locked ones grey; then "N more answers to reach X", big Maths and English Play buttons and "See all matches/bouts…". A back arrow returns to the island map. With one world picked, the card shows that world's stage road straight away (so it never looks empty). Football adds position, points, goals, assists and the team picker. Then Nova tip, daily missions, Maths and English progress.
-- **World screen** (game path, 10 Nov): banner; one-line stage bar (stage number, name, progress, "N to next stage"; Football adds a League table button on phones); big Maths | English tabs that stay at the top while scrolling; then a winding path of stepping stones, one per quest, under a coloured signpost per topic (Matchweek 1, The Moon, London…). Done stones are ticked with stars, started ones show a progress ring, the next one is a big bouncing Play button with Nova beside it; the screen scrolls to it on opening. Tapping a stone opens a small sheet with "Let's go!" / "Continue" / "Play again". Statements not built yet show a grey clock stone. On desktop, Football shows the league table and charts in a side column.
+- **World screen** (game path, 10 Nov): banner; one-line stage bar (stage number, name, progress, "N to next stage"; Football adds a League table button on phones); big Maths | English tabs that stay at the top while scrolling; then a winding path of stepping stones, one per quest, under a coloured signpost per topic (Matchweek 1, The Moon, London…). Done stones are ticked with stars, started ones show a progress ring, the next one is a big bouncing Play button with Nova beside it; the screen scrolls to it on opening. Tapping a stone opens a small sheet with "Let's go!" / "Continue" / "Play again". A statement with no questions would show a grey clock stone (none are left since 11 Nov). On desktop, Football shows the league table and charts in a side column.
 - **Tutor (rebuilt):** plays any quest in any world. **Live stage tracker:** on phones and tablets a strip under the header ("Stage 1 · Opening match … 12 to Main-event match") with the child's avatar sliding towards a trophy after every answer; on desktop a stage ladder in the side column with the avatar climbing. Chat with Nova; question card with the world photo, the world's lead-in ("24th minute", "Round 3", "T-minus 9"), level dots and a star card (every world); 3-level hint ladder; "Show me the answer" after 3 hints or 2 misses; specific mistake messages; confetti and gems; resume where you left off; quest-complete card with stars and "Next match / bout / song…".
-  - Maths: number box with a +/− key; marked by the bank's `checkAnswer` (accepts 7.5, 7.50, £7.50, 1,250, −2).
+  - Maths: number box with a +/− key; marked by the bank's `checkAnswer` (accepts 7.5, 7.50, £7.50, 1,250, −2). Picture questions show the diagram under the question (the world photo shrinks to make room); multiple-choice maths uses the same answer buttons as English; tap-the-grid questions highlight the tapped point and fill the answer box ("You picked (2, 6). Press Check…").
   - English: tap-to-choose answers; spelling (Nova reads the word, the sentence, then the word, using the browser's British voice; "So close!" for one-letter slips); short typed answers (punctuation checked where it matters); open answers sent to AI marking. If n8n can't be reached, Nova shows the example answer and moves on.
 - **Homework scanner (Scan tab):** pick Maths, English or "Not sure"; take a photo or choose one; preview; scanning animation; results with score, praise, each question (child's answer, right answer, feedback, steps, curriculum statement) and "Practise this in [world]", which opens the matching quest. "Try a sample sheet" shows a labelled sample for the child's year (works without n8n).
 - **Read and Grown-ups tabs:** placeholder screens.
@@ -46,14 +46,26 @@ A visually impressive demo link to win the client's confidence. It must work on 
 ## Question banks
 | | Year 4 | Year 5 | Year 6 |
 | --- | --- | --- | --- |
-| Maths statements (built / total) | 30 / 42 | 40 / 49 | 42 / 49 |
-| Maths questions per world | 378 | 462 | 482 |
-| English statements | 20 | 22 | 20 |
-| English items per world | 201 | 161 | 150 |
+| Maths statements (built / total) | 42 / 42 | 49 / 49 | 49 / 49 |
+| Maths questions per world | 558 | 594 | 590 |
+| English statements | 27 | 29 | 27 |
+| English items per world | 222 | 182 | 171 |
 
-- **Maths:** Hamza's bank in `src/data/bank/` (205 templates and hand-written items; 7,932 rendered questions pass `verify`). Each world uses its own slice of seeds, so numbers differ per world (hand-written items keep fixed numbers by design). 28 statements (23 DIAGRAM, 5 INTERACTIVE) are not built yet; see the tagging workbook.
+- **Maths:** Hamza's bank in `src/data/bank/` plus picture questions for the 28 statements tagged DIAGRAM or INTERACTIVE (11 Nov), in `templates.diagram.ts`. Every maths statement now has questions (240 templates; 10,452 rendered questions pass `verify`). Each world uses its own slice of seeds, so numbers differ per world (hand-written items keep fixed numbers by design).
+  - **Diagrams:** a question can carry a `diagram` (plain data, drawn as SVG by `src/components/Diagram.tsx`): clock, coordinate grid (first quadrant or all four), shapes and 3-D shapes, nets, angles (with a protractor), bar chart, pictogram, table, line graph, pie chart, tenths strip and hundred square, number line, measuring jug, cuboid of cubes, and rectangles drawn to scale. Shape drawings and their facts (sides, symmetry, parallel sides, faces, edges, vertices) are in `src/data/bank/shapes.ts`.
+  - **New answer types:** multiple choice (`choices`; the answer is the index of the right choice) and tap-the-grid (`pick`; the child taps a grid point, or types it as `3, 5`, and the answer is stored with `encodePoint`). Both run through the same `checkAnswer`, hints, mistakes and reveal as typed answers.
+  - **Covered by pictures:** Year 4 number line, area by counting squares, telling the time, classifying shapes, acute/obtuse angles, lines of symmetry, completing a symmetric figure, coordinates, translations, plotting a polygon, bar charts and time graphs, pictograms and tables. Year 5 tenths and hundredths, perimeter of composite shapes, capacity and volume, 3-D shapes, angle types and estimates, measuring with a protractor, regular polygons, reflection and translation, line graphs. Year 6 scale factors, same area with different perimeter, drawing shapes on a grid, nets, all four quadrants, reflecting and translating on axes, pie charts and conversion graphs.
 - **English:** `src/data/english/`. Spelling (Appendix 1 rules and the statutory word lists: Years 3–4 list in Year 4, Years 5–6 list split across Years 5 and 6), grammar and punctuation (Appendix 2), reading comprehension (one original passage per world, own questions per year: retrieval, inference, vocabulary, prediction/summary, fact and opinion or the writer's choices) and writing (open, AI-marked). About 85% of items are marked in code. Word lists are split into quests of 10 words.
-- **Checks:** `npm run verify` runs both bank verifiers (broken text, spacing, answers in options, right answers accepted, wrong options rejected, wording differs by world). A separate run checked all 11,004 quest questions in all 6 worlds through the tutor's real marking path: 0 problems.
+  - **Added 11 Nov (`extra.ts`, `texts.ts`), 7 statements per year:**
+    - **Poetry:** an original poem per world, one each of rhyming couplets, an acrostic, haiku, free verse, a limerick and a kenning. Year 4: forms. Year 5: figurative language and word meaning. Year 6: mood, theme and evaluation.
+    - **Non-fiction:** an information text per world with headings and bullet points; facts checked in November 2026. Year 4: retrieval and headings. Year 5: layout and presentation. Year 6: fact and opinion, true statements, presenting information.
+    - **Other text types:** Year 4 fables (moral and conventions). Year 5 play scripts (stage directions, layout). Year 6 comparing the poem and the information text.
+    - **Dictionary and thesaurus:** alphabetical order, guide letters, meanings in context, word class, synonyms and antonyms.
+    - **Proof-reading:** spelling, capital letters, apostrophes, speech marks, tense and agreement.
+    - **Planning and editing:** ordering, precise vocabulary, linking adverbials, formality.
+    - **Writing in different forms:** instructions and recounts (Year 4), reports and poems (Year 5), balanced arguments and flashback narratives (Year 6).
+- **Checks:** `npm run verify` runs both bank verifiers (broken text, spacing, answers in options, right answers accepted, wrong options rejected, wording differs by world). A separate run checked all 13,902 quest questions in all 6 worlds through the tutor's real marking path (choices, taps and typed answers): 0 problems. The English duplicate-option check is now exact (capitals and punctuation count), because choices are marked exactly and some questions are about capitals and punctuation.
+- **Not covered, and not suited to a quiz app:** handwriting, spoken language (discussion, presenting), and reading aloud and performing. The Reading coach (still to build) would cover reading aloud.
 
 ## n8n workflows (to import)
 Files in `n8n/`, generated by `npm run n8n` from the app's curriculum (rebuild after curriculum changes rather than editing by hand). Import each in n8n (Workflows → Import from file), open the OpenAI node and select the credential **"OpenAi c2 account"**, then publish.
@@ -69,8 +81,23 @@ Files in `n8n/`, generated by `npm run n8n` from the app's curriculum (rebuild a
 - App URLs default to the Cleartwo instance; override with `VITE_SCAN_WEBHOOK_URL` and `VITE_MARK_WEBHOOK_URL`.
 - Not yet tested against live OpenAI from here (the Code nodes were run locally with sample inputs and replies). Test with a real sheet after import.
 
+### How the scanner handles different school years (reviewed 10 Nov)
+- The year comes from the login screen (Year 4, 5 or 6) and is sent with the photo and subject. The workflow puts **only that year's** curriculum statements in the prompt.
+- Right and wrong are year-independent: the model works every answer out itself, so harder or easier sheets are still marked correctly.
+- The year decides two things: which curriculum statement each question is tagged with (this drives "Practise this in [world]" and the future parent report), and how leniently free writing is judged.
+- **Gaps:**
+  - Catch-up or extension work from another year gets no tag, or a forced near-miss tag.
+  - A wrong year chosen at login silently tags and judges everything against that year.
+  - Year 7 and above are refused (400).
+- **Proposed fix (agreed in principle, not built yet):** also send the year below and the year above. The model returns the year the work looks like ("This looks like Year 6 work") and tags each question with any of those years. "Practise this" then opens that year's quest. This changes `scripts/build-n8n.ts`, so rebuild with `npm run n8n` and re-import the workflow.
+- **11 Nov:** the scanner workflow (`n8n/study-buddy-homework-scanner.json`) was regenerated because the curriculum gained 7 English statements per year. Re-import it in n8n (same webhook path) so scanned English work can be tagged against them. The English marking workflow did not change.
+
 ## Photo-to-avatar workflow (n8n)
 - Workflow "Study Buddy: Photo to Avatar" (ID `uJSV5tD2SVSLIgmY`), webhook `POST /webhook/study-buddy-avatar`, form field `image`. gpt-image-2, credential "OpenAi c2 account", execution saving off. About a minute per avatar.
+
+## Mobile check (10 Nov)
+- Every main screen was checked at 320, 360, 390 and 430px wide and on an iPad (768px): nothing scrolls sideways or is cut off, and buttons are at least 44px (the visual refresh fixed "Switch explorer"). On 11 Nov, a tap-the-grid question was tested end to end on a 390px phone (tap, Check, goal message, stage tracker moving).
+- **Not tested yet:** real iPhone (Safari) and Android devices, especially the on-screen keyboard over the answer box; landscape; slow mobile data. Test the live link on real phones before the client demo.
 
 ## Risks to fix before wider sharing
 - **Public webhooks:** the avatar, scanner and marking webhooks are public URLs in a public repo, and each call costs OpenAI credit. Make the repo private, and/or add a shared-secret header check plus a rate limit in n8n.
@@ -82,14 +109,14 @@ Files in `n8n/`, generated by `npm run n8n` from the app's curriculum (rebuild a
 - **Bundle size** is about 250 KB gzipped (the banks ship with the app). Fine for the demo; split per year later if needed.
 
 ## Still to build
-1. Diagram maths statements (number lines, clocks, grids, charts, angles) and the 5 interactive ones.
-2. Reading coach (passage, live waveform, word highlighting).
+1. **Next up:** the scanner year fix (above), then **Supabase**. The plan is in `docs/SUPABASE_PLAN.md` (also in the claude.ai project as `Supabase plan.md`): parent accounts, child profiles, progress sync, an answer log for the parent portal, saved scans, and Edge Functions that lock down the n8n webhooks.
+2. Reading coach (passage, live waveform, word highlighting); it would also cover reading aloud.
 3. Parent portal: weekly report, mastery by topic (curriculum IDs are already on every question and scan result).
 4. Onboarding extras: parent/guardian step, buddy picker, session length, change worlds or avatar later.
 5. Focus mode; landscape world map for desktop; streaks and daily missions from real activity.
-6. Progress lives in the browser (localStorage) only; a backend is needed for cross-device progress and the parent portal.
+6. Progress lives in the browser (localStorage) only; Supabase (see the plan) replaces this.
 7. Year 7 (needs a KS3 bank).
-8. Final QA on phone, tablet and desktop, accessibility pass.
+8. Final QA on real phones and tablets, and an accessibility pass (including screen-reader text for the new diagrams).
 
 ## Visual refresh (10 Nov, late)
 A look-and-feel pass over every screen: sky backgrounds, chunky game buttons and bars, a livelier world map, floating colour-coded navigation, world-coloured question screens and richer rewards. No logic changed. The "Switch explorer" tap size is fixed. Details, file list and checks are in `docs/VISUAL_REFRESH.md`.
@@ -105,11 +132,13 @@ React 19, TypeScript, Vite 6, Tailwind 3, lucide-react 0.460. framer-motion 12.2
 | `src/data/syllabus.ts` | Builds topics and quests for a year and subject; renders a quest's questions for a world |
 | `src/data/journeys.ts` | Each world's story: topic names, lead-ins, cheers |
 | `src/data/stages.ts` | Stage ladders, thresholds, Premier League clubs, league table, Golden Boot and assists charts |
-| `src/data/photos.ts` | 11 photos per world with credits |
-| `src/components/journey.tsx` | Stage road, stage ladder, football boards, team picker |
+| `src/data/photos.ts` | Unsplash photos per world, plus the drop-in loader for team photos |
+| `src/components/journey.tsx` | Stage road, stage ladder, live stage trackers (`StageStrip`, `StageClimb`), football boards, team picker |
+| `src/components/art.tsx` | Nova, photos (small-photo handling), island map (`WorldMap`), stage road map (`StageMap`) |
 | `src/data/curriculum.maths.ts` | 140 maths statements (from the tagging workbook) |
-| `src/data/bank/` | Maths question bank (Hamza) |
-| `src/data/english/` | English bank: `items.y4/5/6.ts`, `reading.ts` (passages), `words.ts` (word lists), `skins.ts`, `mark.ts` (code marking) |
+| `src/data/bank/` | Maths question bank (Hamza); `templates.diagram.ts`, `diagram.ts` and `shapes.ts` hold the picture questions |
+| `src/components/Diagram.tsx` | Draws every diagram type; the tappable grid |
+| `src/data/english/` | English bank: `items.y4/5/6.ts`, `reading.ts` (story passages), `texts.ts` (poems and information texts), `extra.ts` (poetry, non-fiction, fables/scripts/comparing, dictionary, proof-reading, editing, forms of writing), `words.ts` (word lists), `skins.ts`, `mark.ts` (code marking) |
 | `src/data/ai.ts` | n8n calls: English marking and homework scanner; photo prep |
 | `src/data/scanSamples.ts` | Sample marked sheets per year and subject |
 | `src/data/stars.ts` | Editable star cast |
@@ -117,6 +146,7 @@ React 19, TypeScript, Vite 6, Tailwind 3, lucide-react 0.460. framer-motion 12.2
 | `src/screens/Onboarding.tsx`, `AvatarStep.tsx`, `Gate.tsx`, `Soon.tsx` | Intake, avatar, passcode, placeholders |
 | `scripts/bank/verify.ts`, `scripts/english/verify.ts` | Bank checks (`npm run verify`) |
 | `scripts/build-n8n.ts`, `n8n/*.json` | n8n workflow builder and the generated workflows |
+| `docs/SUPABASE_PLAN.md` | Plan for the Supabase integration (next session) |
 
 ## Photos
 - 11 Unsplash photos per world in `src/data/photos.ts` (free licence, credited on screen). The wrestling cover is the client-supplied `public/worlds/wrestling.jpg`. If a photo fails to load, a coloured fallback shows instead.
@@ -126,16 +156,21 @@ React 19, TypeScript, Vite 6, Tailwind 3, lucide-react 0.460. framer-motion 12.2
 - **Photo library:** Grown-ups tab → Photo library shows every world's photos in order, with descriptions and credits.
 
 ## Updating the live site
-Unzip into the local repo folder (when replacing the whole app, delete the old `src` first), then in PowerShell:
+Node.js isn't installed on Hamza's PC; that's fine, because Netlify runs `npm install` and the build. Download the zip, then in PowerShell (run each line):
 ```
 $env:Path += ";C:\Program Files\Git\cmd;$env:LOCALAPPDATA\Programs\Git\cmd"
 cd "C:\Users\HamzaAbid\OneDrive - Cleartwo LTD\Desktop\New folder (2)"
-npm install
+git pull
+git status    # must say "On branch main"
+$zip = Get-ChildItem "$env:USERPROFILE\Downloads\study-buddy-update*.zip" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$zip.FullName # check it's the one you just downloaded
+Get-ChildItem -Force | Where-Object { $_.Name -notin '.git','node_modules' -and $_.Name -notlike '.env*' } | Remove-Item -Recurse -Force
+Expand-Archive $zip.FullName -DestinationPath . -Force
 git add -A
 git commit -m "Describe the change"
-git push
+git push      # ends with main -> main
 ```
-Netlify redeploys automatically within a minute or two. Run `npm install` once after this update (adds `tsx`).
+Netlify publishes within a minute or two (Deploys tab); then hard-refresh with Ctrl+F5. A zip is built on top of a specific GitHub commit; if `git log --oneline -1` after `git pull` shows a newer commit than the zip was built on, stop and ask, or newer changes will be overwritten.
 
 ## Starting a new chat
 Upload this file and say: "Continue the Study Buddy demo from this handover. Next: [task]." If the repo has changed since, say what changed.

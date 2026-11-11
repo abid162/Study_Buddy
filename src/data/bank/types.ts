@@ -1,3 +1,5 @@
+import type { Diagram } from './diagram';
+
 export type Level = 1 | 2 | 3;
 export type Hints = [string, string, string];
 
@@ -29,6 +31,9 @@ export interface Draft {
   mistakes: Mistake[];                // specific wrong answers and why
   params: Record<string, number | string | undefined>; // numbers only: identical across worlds
   alt?: number;                       // independent recomputation, checked by verify.ts
+  diagram?: Diagram;                  // picture shown with the question (src/components/Diagram.tsx)
+  choices?: string[];                 // multiple choice: `answer` is the index of the right choice
+  pick?: boolean;                     // tap-the-grid: `answer` is encodePoint(x, y)
 }
 
 export interface Template {
@@ -56,4 +61,7 @@ export interface Question {
   hints: Hints;
   mistakes: Record<string, string>;  // keyed by the wrong number as typed
   params: Record<string, number | string | undefined>;
+  diagram?: Diagram;
+  choices?: string[];
+  pick?: boolean;
 }
