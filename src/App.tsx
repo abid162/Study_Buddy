@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Shell, type Tab } from './components/shell'
 import type { IslandId } from './data/world'
-import { Gate } from './screens/Gate'
+import { Welcome } from './screens/Welcome'
+import { ChildPicker } from './screens/ChildPicker'
+import { AccountProvider, useAccount } from './data/account'
 import { Home } from './screens/Home'
 import { Tutor } from './screens/Tutor'
 import { World } from './screens/World'
@@ -13,36 +15,40 @@ import { ProfileProvider, useProfile } from './data/profile'
 import { ProgressProvider, nextQuest, useProgress } from './data/progress'
 import type { QuestDef, Subject, Year } from './data/syllabus'
 
-const UNLOCK_KEY = 'study-buddy-preview-unlocked'
-
 export default function App() {
   return (
-    <ProfileProvider>
-      <ProgressProvider>
-        <Root />
-      </ProgressProvider>
-    </ProfileProvider>
+    <AccountProvider>
+      <ProfileProvider>
+        <ProgressProvider>
+          <Root />
+        </ProgressProvider>
+      </ProfileProvider>
+    </AccountProvider>
   )
 }
 
 type Play = { world: IslandId; subject: Subject; questId: string; key: number }
 
 function Root() {
+  const account = useAccount()
   const { profile, ready } = useProfile()
   const progress = useProgress()
-  const [unlocked, setUnlocked] = useState(false)
+  /** a signed-in parent is adding a child */
+  const [adding, setAdding] = useState(false)
   const [tab, setTab] = useState<Tab>('home')
   const [world, setWorld] = useState<IslandId | null>(null)
   const [play, setPlay] = useState<Play | null>(null)
   const [from, setFrom] = useState<Tab>('home')
 
+  // a new child or a switch of child starts on Home
+  const childKey = profile?.id ?? profile?.name ?? ''
   useEffect(() => {
-    try {
-      if (sessionStorage.getItem(UNLOCK_KEY) === '1') setUnlocked(true)
-    } catch {
-      /* storage blocked: ask for the passcode */
-    }
-  }, [])
+    setAdding(false)
+    setTab('home')
+    setWorld(null)
+    setPlay(null)
+    window.scrollTo({ top: 0 })
+  }, [childKey, account.mode])
 
   const top = () => window.scrollTo({ top: 0 })
 
@@ -65,22 +71,13 @@ function Root() {
     top()
   }
 
-  if (!unlocked)
-    return (
-      <Gate
-        onUnlock={() => {
-          try {
-            sessionStorage.setItem(UNLOCK_KEY, '1')
-          } catch {
-            /* fine: unlocked for this page only */
-          }
-          setUnlocked(true)
-        }}
-      />
-    )
-
+  if (!account.ready) return <div className="min-h-dvh bg-night" />
+  if (!account.mode) return <Welcome />
   if (!ready) return <div className="min-h-dvh bg-night" />
-  if (!profile) return <Onboarding />
+  if (!profile) {
+    if (account.mode === 'parent' && !adding) return <ChildPicker onAdd={() => setAdding(true)} />
+    return <Onboarding onCancel={account.mode === 'parent' ? () => setAdding(false) : undefined} />
+  }
 
   return (
     <Shell tab={tab} onTab={go} hideNav={tab === 'tutor'}>

@@ -30,13 +30,17 @@ function Speech({ children, mood = 'happy' }: { children: string; mood?: Mood })
   )
 }
 
-export function Onboarding() {
+/** Set up a child: name and year, worlds, avatar. `onCancel` (signed-in parents) returns to the child list. */
+export function Onboarding({ onCancel }: { onCancel?: () => void } = {}) {
   const { profile, save } = useProfile()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [name, setName] = useState(profile?.name ?? '')
   const [year, setYear] = useState<Profile['year'] | null>(profile?.year ?? null)
   const [picks, setPicks] = useState<IslandId[]>(profile?.interests ?? [])
   const [tried, setTried] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  /** stops a double tap creating the same child twice */
+  const saving = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -69,9 +73,17 @@ export function Onboarding() {
   const allPicked = picks.length === ISLANDS.length
   const toggleAll = () => setPicks(allPicked ? [] : ISLANDS.map((i) => i.id))
 
-  const finish = (avatar: ChildAvatarData) => {
-    if (!picks.length || !year) return
-    save({ name: clean, year, interests: picks, avatar })
+  const finish = async (avatar: ChildAvatarData) => {
+    if (!picks.length || !year || saving.current) return
+    saving.current = true
+    setSaveError('')
+    try {
+      await save({ name: clean, year, interests: picks, avatar })
+    } catch (e) {
+      setSaveError(`${(e as Error).message} Your choices are still here, so you can try again.`)
+    } finally {
+      saving.current = false
+    }
   }
 
   return (
@@ -79,8 +91,8 @@ export function Onboarding() {
 
       <div className="relative mx-auto w-full max-w-[640px]">
         <div className="mb-6 flex items-center gap-3">
-          {step > 1 && (
-            <button type="button" onClick={() => setStep(step === 3 ? 2 : 1)} className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.25)] hover:bg-white/25" aria-label="Back">
+          {(step > 1 || onCancel) && (
+            <button type="button" onClick={() => (step === 1 ? onCancel?.() : setStep(step === 3 ? 2 : 1))} className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.25)] hover:bg-white/25" aria-label="Back">
               <ArrowLeft size={24} aria-hidden />
             </button>
           )}
@@ -98,7 +110,12 @@ export function Onboarding() {
           {step === 3 ? (
             <motion.div key="s3" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
               <Speech mood="cheer">{`Last thing, ${clean}! Let’s make your avatar.`}</Speech>
-              <AvatarStep name={clean} initial={profile?.avatar} onBack={() => setStep(2)} onDone={finish} />
+              {saveError && (
+                <p role="alert" className="mt-4 rounded-3xl bg-paper px-5 py-4 font-bold text-coral-deep shadow-pop">
+                  {saveError}
+                </p>
+              )}
+              <AvatarStep name={clean} initial={profile?.avatar} onBack={() => setStep(2)} onDone={(a) => void finish(a)} />
             </motion.div>
           ) : step === 1 ? (
             <motion.div key="s1" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>

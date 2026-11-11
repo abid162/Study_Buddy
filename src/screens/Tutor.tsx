@@ -229,6 +229,9 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   }, [msgs, QS])
 
   const save = (answered: number) => progress.record(world, questId, { answered, firstTry: firstTry.current, helped: helped.current, total: QS.length })
+  /** one row in the answer log per finished question (signed-in families only) */
+  const logAnswer = (outcome: 'first_try' | 'helped' | 'shown') =>
+    progress.log({ world, subject, questId, curriculumId: quest?.curriculumId ?? questId, outcome, hints: hint })
 
   /** Answering one more question: did that unlock a new stage in this world? */
   const stageUp = (): NewMsg | null => {
@@ -263,6 +266,7 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
     setConfetti((k) => k + 1)
     setGain((g) => ({ k: g.k + 1, n: clean ? 15 : 10 }))
     save(idx + 1)
+    logAnswer(clean ? 'first_try' : 'helped')
     const last = idx === QS.length - 1
     say([
       { from: 'buddy', text: `${cheer} ${text}${clean && world !== 'football' ? ' First try, no hints!' : ''}${extra ? `\n${extra}` : ''}`, mood: 'cheer' },
@@ -285,6 +289,7 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
     const up = stageUp()
     setSolved(true)
     save(idx + 1)
+    logAnswer('shown')
     const ans = answerOf(cur)
     const why = cur.kind === 'english' ? cur.q.explain : cur.q.hints[2]
     say([
@@ -318,6 +323,7 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
         // marking helper offline: show the example answer and move on
         setSolved(true)
         save(idx + 1)
+        logAnswer('shown')
         say([
           { from: 'buddy', text: `My marking helper is offline right now, so here’s an example to compare with yours:\n“${cur.q.model}”`, mood: 'think' },
           idx === QS.length - 1 ? { from: 'done' } : { from: 'next', index: idx },

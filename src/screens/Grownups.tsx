@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Images, Users } from 'lucide-react'
+import { ArrowLeftRight, Images, LogIn, LogOut, Users } from 'lucide-react'
+import { useAccount } from '../data/account'
+import { useProfile } from '../data/profile'
 import { Buddy } from '../components/art'
 import { ISLANDS } from '../data/world'
 import { photosFor, picUrl } from '../data/photos'
@@ -7,8 +9,38 @@ import { photosFor, picUrl } from '../data/photos'
 /** Grown-ups tab: the parent portal is still to come; for now it holds the team's photo library. */
 export function Grownups({ onHome }: { onHome: () => void }) {
   const [showPhotos, setShowPhotos] = useState(false)
+  const account = useAccount()
+  const { profile, reset } = useProfile()
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 pb-12 pt-[calc(env(safe-area-inset-top,0px)+20px)] sm:px-8">
+      <section className="card mb-6 flex flex-wrap items-center gap-4 p-6" aria-labelledby="account-title">
+        <div className="min-w-[220px] flex-1">
+          <h2 id="account-title" className="font-display text-xl font-semibold">
+            {account.mode === 'parent' ? 'Your account' : 'You’re in the demo'}
+          </h2>
+          <p className="break-words text-ink-soft">
+            {account.mode === 'parent'
+              ? `Signed in as ${account.email}. ${profile?.name ?? 'Your child'}’s progress is saved to your account and follows them to any device.`
+              : 'Progress stays in this browser only. Sign in to save each child’s progress to an account.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {account.mode === 'parent' ? (
+            <>
+              <button type="button" className="btn btn-ghost" onClick={reset}>
+                <ArrowLeftRight size={20} aria-hidden /> Switch child
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => void account.signOut()}>
+                <LogOut size={20} aria-hidden /> Sign out
+              </button>
+            </>
+          ) : account.configured ? (
+            <button type="button" className="btn btn-grape" onClick={account.leaveDemo}>
+              <LogIn size={20} aria-hidden /> Sign in instead
+            </button>
+          ) : null}
+        </div>
+      </section>
       <section className="card flex flex-wrap items-center gap-5 p-6">
         <div className="relative h-24 w-24 shrink-0">
           <Buddy mood="think" className="h-24 w-24" />

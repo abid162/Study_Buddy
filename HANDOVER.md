@@ -1,12 +1,13 @@
 # Study Buddy demo: handover
 
-Last updated: 11 November 2026 (whole Years 4–6 syllabus now covered: all 140 maths statements with drawn diagrams, and new English reading and writing statements; earlier: visual refresh, real star names, stage road, live stage tracker, Supabase plan). Owner: Hamza (Cleartwo).
+Last updated: 11 November 2026, afternoon (Supabase: parent sign-in, child profiles, progress sync and answer log; earlier the same day: whole Years 4–6 syllabus now covered: all 140 maths statements with drawn diagrams, and new English reading and writing statements; earlier: visual refresh, real star names, stage road, live stage tracker, Supabase plan). Owner: Hamza (Cleartwo).
 
 | Item | Detail |
 | --- | --- |
 | Code | https://github.com/abid162/Study_Buddy (branch `main`). The repo is **public**. |
-| Hosting | Netlify, auto-deploys on every push to `main` (build `npm run build`, publish `dist`) |
-| Passcode | `buddy2026` (set in `src/screens/Gate.tsx`; visible to anyone who reads the public repo) |
+| Hosting | Vercel (the link sent to the client) and Netlify, both auto-deploy on every push to `main` (build `npm run build`, publish `dist`) |
+| Supabase | Project "Study Buddy", ref `edznmkujqdahyszyiica`, London (eu-west-2), in Cleartwo's "Paid Org" ($10/month compute) |
+| Passcode | `buddy2026` for "Try the demo" (set in `src/screens/Welcome.tsx`; visible to anyone who reads the public repo) |
 | Source brief | "Study Buddy: Adaptive AI EdTech Platform, Architecture, MVP Scope & Technical Blueprint" (Sehar, 19 Oct 2026) |
 | n8n | Cleartwo instance, https://cleartwo.app.n8n.cloud |
 
@@ -34,14 +35,14 @@ A visually impressive demo link to win the client's confidence. It must work on 
 - **Deployment:** Netlify from GitHub.
 
 ## What's built
-- **Passcode screen**, **child intake** (name, year 4–6, worlds, avatar) and **app shell** (tab bar on phones, side rail at 1024px+), as before.
+- **Welcome screen:** "Sign in with email" (parents) or "Try the demo" (passcode, nothing saved to an account). Then **child intake** (name, year 4–6, worlds, avatar) and **app shell** (tab bar on phones, side rail at 1024px+), as before.
 - **Home:** greeting, streak, gems and level (from real progress), "Today's quest" (next maths quest in the first world), then the map card. With several worlds it shows the illustrated island map (each island: STAGE badge, stage name, progress bar); tapping an island turns the card into that world's **stage road**: 8 stage islands on the sea, numbered and named ("3 · US Title"), finished ones with flags, the current one with a trophy and the child's avatar walking towards the next, locked ones grey; then "N more answers to reach X", big Maths and English Play buttons and "See all matches/bouts…". A back arrow returns to the island map. With one world picked, the card shows that world's stage road straight away (so it never looks empty). Football adds position, points, goals, assists and the team picker. Then Nova tip, daily missions, Maths and English progress.
 - **World screen** (game path, 10 Nov): banner; one-line stage bar (stage number, name, progress, "N to next stage"; Football adds a League table button on phones); big Maths | English tabs that stay at the top while scrolling; then a winding path of stepping stones, one per quest, under a coloured signpost per topic (Matchweek 1, The Moon, London…). Done stones are ticked with stars, started ones show a progress ring, the next one is a big bouncing Play button with Nova beside it; the screen scrolls to it on opening. Tapping a stone opens a small sheet with "Let's go!" / "Continue" / "Play again". A statement with no questions would show a grey clock stone (none are left since 11 Nov). On desktop, Football shows the league table and charts in a side column.
 - **Tutor (rebuilt):** plays any quest in any world. **Live stage tracker:** on phones and tablets a strip under the header ("Stage 1 · Opening match … 12 to Main-event match") with the child's avatar sliding towards a trophy after every answer; on desktop a stage ladder in the side column with the avatar climbing. Chat with Nova; question card with the world photo, the world's lead-in ("24th minute", "Round 3", "T-minus 9"), level dots and a star card (every world); 3-level hint ladder; "Show me the answer" after 3 hints or 2 misses; specific mistake messages; confetti and gems; resume where you left off; quest-complete card with stars and "Next match / bout / song…".
   - Maths: number box with a +/− key; marked by the bank's `checkAnswer` (accepts 7.5, 7.50, £7.50, 1,250, −2). Picture questions show the diagram under the question (the world photo shrinks to make room); multiple-choice maths uses the same answer buttons as English; tap-the-grid questions highlight the tapped point and fill the answer box ("You picked (2, 6). Press Check…").
   - English: tap-to-choose answers; spelling (Nova reads the word, the sentence, then the word, using the browser's British voice; "So close!" for one-letter slips); short typed answers (punctuation checked where it matters); open answers sent to AI marking. If n8n can't be reached, Nova shows the example answer and moves on.
 - **Homework scanner (Scan tab):** pick Maths, English or "Not sure"; take a photo or choose one; preview; scanning animation; results with score, praise, each question (child's answer, right answer, feedback, steps, curriculum statement) and "Practise this in [world]", which opens the matching quest. "Try a sample sheet" shows a labelled sample for the child's year (works without n8n).
-- **Read and Grown-ups tabs:** placeholder screens.
+- **Read tab:** placeholder. **Grown-ups tab:** account card (signed in as…, Switch child, Sign out; in the demo, "Sign in instead"), then the photo library.
 
 ## Question banks
 | | Year 4 | Year 5 | Year 6 |
@@ -99,6 +100,17 @@ Files in `n8n/`, generated by `npm run n8n` from the app's curriculum (rebuild a
 - Every main screen was checked at 320, 360, 390 and 430px wide and on an iPad (768px): nothing scrolls sideways or is cut off, and buttons are at least 44px (the visual refresh fixed "Switch explorer"). On 11 Nov, a tap-the-grid question was tested end to end on a 390px phone (tap, Check, goal message, stage tracker moving).
 - **Not tested yet:** real iPhone (Safari) and Android devices, especially the on-screen keyboard over the answer box; landscape; slow mobile data. Test the live link on real phones before the client demo.
 
+## Supabase (11 Nov)
+- **Project:** "Study Buddy" (`edznmkujqdahyszyiica`), London. The earlier Tokyo project `Study_Buddy` was made by mistake and should be deleted.
+- **Tables:** `children` (belongs to a parent; no child logins), `quest_progress` (one row per child, world and quest), `answers` (one row per finished question: outcome `first_try`, `helped` or `shown`, hint count, curriculum ID), `scans` (marking only, never the photo; not written yet), `consents` (`terms`, `photo_avatar`, `homework_scanner`). Private Storage bucket `avatars` (`<parent_id>/<child_id>.webp`, cartoon only). SQL in `supabase/migrations/`; already applied.
+- **Security:** Row Level Security on every table; each parent reaches only their own children's rows and avatar folder; signed-out visitors have no access. Tested with two pretend parents (rolled back). Security advisor: no issues.
+- **Sign-in:** email one-time code and magic link in the same email (`signInWithOtp`, implicit flow so the link works on any device). First sign-in asks the parent to agree to the terms (saved in `consents`). Then "Who's learning today?": pick a child, add a child, sign out.
+- **Profiles and progress:** `useProfile()` and `useProgress()` keep their shape. Demo mode works as before (browser only). Signed in: the child row is the profile; progress saves to the browser at once, then syncs through a queue in localStorage (`study-buddy-sync-queue:<user id>`) that retries every 30 seconds, on reconnect and on reopening. On a child's first load, demo progress in this browser for the same name and year is uploaded.
+- **Keys:** only the public URL and publishable key are in the app (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`; see `.env.example`). Without them the app runs demo-only.
+- **Dashboard settings (done by Hamza):** both variables in Vercel and Netlify; Auth Site URL = the Vercel address, Redirect URLs = Vercel, Netlify and `http://localhost:5173` (each with `/**`); Magic Link email template from `supabase/templates/magic-link.html`; custom SMTP (the built-in sender only emails team members and a few per hour).
+- **Not done yet:** Edge Functions in front of the scanner, marking and avatar webhooks (shared-secret header, per-child daily limits, saving scans); delete-child and delete-account; parent portal reading `answers`. See `docs/SUPABASE_PLAN.md` steps 7–9.
+- **Known limit:** if a child replays a finished quest on one device, another device with an older, higher count can push the higher count back. Harmless for the demo.
+
 ## Risks to fix before wider sharing
 - **Public webhooks:** the avatar, scanner and marking webhooks are public URLs in a public repo, and each call costs OpenAI credit. Make the repo private, and/or add a shared-secret header check plus a rate limit in n8n.
 - **Passcode** is visible in the public repo; it only keeps casual visitors out.
@@ -109,12 +121,11 @@ Files in `n8n/`, generated by `npm run n8n` from the app's curriculum (rebuild a
 - **Bundle size** is about 250 KB gzipped (the banks ship with the app). Fine for the demo; split per year later if needed.
 
 ## Still to build
-1. **Next up:** the scanner year fix (above), then **Supabase**. The plan is in `docs/SUPABASE_PLAN.md` (also in the claude.ai project as `Supabase plan.md`): parent accounts, child profiles, progress sync, an answer log for the parent portal, saved scans, and Edge Functions that lock down the n8n webhooks.
+1. **Next up:** finish Supabase (Edge Functions for the webhooks, saved scans, delete child or account; see the Supabase section), then the scanner year fix.
 2. Reading coach (passage, live waveform, word highlighting); it would also cover reading aloud.
 3. Parent portal: weekly report, mastery by topic (curriculum IDs are already on every question and scan result).
 4. Onboarding extras: parent/guardian step, buddy picker, session length, change worlds or avatar later.
 5. Focus mode; landscape world map for desktop; streaks and daily missions from real activity.
-6. Progress lives in the browser (localStorage) only; Supabase (see the plan) replaces this.
 7. Year 7 (needs a KS3 bank).
 8. Final QA on real phones and tablets, and an accessibility pass (including screen-reader text for the new diagrams).
 
@@ -122,13 +133,16 @@ Files in `n8n/`, generated by `npm run n8n` from the app's curriculum (rebuild a
 A look-and-feel pass over every screen: sky backgrounds, chunky game buttons and bars, a livelier world map, floating colour-coded navigation, world-coloured question screens and richer rewards. No logic changed. The "Switch explorer" tap size is fixed. Details, file list and checks are in `docs/VISUAL_REFRESH.md`.
 
 ## Tech
-React 19, TypeScript, Vite 6, Tailwind 3, lucide-react 0.460. framer-motion 12.23.24 is pinned with motion-dom 12.23.23 and motion-utils 12.23.6; mismatched versions break the build. Fonts: Fredoka (display) and Atkinson Hyperlegible Next (body). Dev tool: `tsx` (for the verify and n8n scripts).
+React 19, TypeScript, Vite 6, Tailwind 3, lucide-react 0.460, @supabase/supabase-js 2.118.0 (pinned). framer-motion 12.23.24 is pinned with motion-dom 12.23.23 and motion-utils 12.23.6; mismatched versions break the build. Fonts: Fredoka (display) and Atkinson Hyperlegible Next (body). Dev tool: `tsx` (for the verify and n8n scripts).
 
 | File | What it holds |
 | --- | --- |
-| `src/App.tsx` | Passcode, intake, routing (home, world, tutor, scan) |
-| `src/data/profile.tsx` | Child profile (name, year, worlds, avatar, favourite team), session storage |
-| `src/data/progress.tsx` | Per-world progress, gems, stars, next quest (localStorage) |
+| `src/App.tsx` | Welcome, child picker, intake, routing (home, world, tutor, scan) |
+| `src/data/supabase.ts`, `database.types.ts` | Supabase client and generated table types |
+| `src/data/account.tsx` | Demo or parent mode, sign-in, children list, consent, saving a child (and photo avatar to Storage) |
+| `src/data/progress.sync.ts` | Offline queue for progress and answer-log writes |
+| `src/data/profile.tsx` | Child profile (name, year, worlds, avatar, favourite team): session storage in the demo, the `children` row when signed in |
+| `src/data/progress.tsx` | Per-world progress, gems, stars, next quest, answer log (localStorage; synced to Supabase when signed in) |
 | `src/data/syllabus.ts` | Builds topics and quests for a year and subject; renders a quest's questions for a world |
 | `src/data/journeys.ts` | Each world's story: topic names, lead-ins, cheers |
 | `src/data/stages.ts` | Stage ladders, thresholds, Premier League clubs, league table, Golden Boot and assists charts |
@@ -143,10 +157,11 @@ React 19, TypeScript, Vite 6, Tailwind 3, lucide-react 0.460. framer-motion 12.2
 | `src/data/scanSamples.ts` | Sample marked sheets per year and subject |
 | `src/data/stars.ts` | Editable star cast |
 | `src/screens/Home.tsx`, `World.tsx`, `Tutor.tsx`, `Scan.tsx` | Main screens |
-| `src/screens/Onboarding.tsx`, `AvatarStep.tsx`, `Gate.tsx`, `Soon.tsx` | Intake, avatar, passcode, placeholders |
+| `src/screens/Welcome.tsx`, `ChildPicker.tsx`, `Onboarding.tsx`, `AvatarStep.tsx`, `Soon.tsx` | Sign-in and demo passcode, child picker, intake, avatar, placeholders |
 | `scripts/bank/verify.ts`, `scripts/english/verify.ts` | Bank checks (`npm run verify`) |
 | `scripts/build-n8n.ts`, `n8n/*.json` | n8n workflow builder and the generated workflows |
-| `docs/SUPABASE_PLAN.md` | Plan for the Supabase integration (next session) |
+| `docs/SUPABASE_PLAN.md` | Supabase plan (steps 1–6 built on 11 Nov) |
+| `supabase/migrations/`, `supabase/templates/` | Applied SQL; the sign-in email template |
 
 ## Photos
 - 11 Unsplash photos per world in `src/data/photos.ts` (free licence, credited on screen). The wrestling cover is the client-supplied `public/worlds/wrestling.jpg`. If a photo fails to load, a coloured fallback shows instead.

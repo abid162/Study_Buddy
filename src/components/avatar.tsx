@@ -11,7 +11,8 @@ export interface AvatarLook {
   extra: number
 }
 
-export type ChildAvatarData = { kind: 'built'; look: AvatarLook } | { kind: 'photo'; src: string }
+/** A photo avatar shows `src`; for signed-in families `path` is its place in the private Supabase bucket. */
+export type ChildAvatarData = { kind: 'built'; look: AvatarLook } | { kind: 'photo'; src: string; path?: string }
 
 export const SKIN = ['#F9DCC4', '#F1C3A0', '#E0A47A', '#C68255', '#9A5B36', '#6B3E22']
 export const SKIN_NAMES = ['Light', 'Light medium', 'Medium', 'Medium tan', 'Brown', 'Dark brown']

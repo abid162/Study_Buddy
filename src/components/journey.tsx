@@ -173,7 +173,7 @@ export function TeamPicker({ open, onClose }: { open: boolean; onClose: () => vo
                   <button
                     type="button"
                     onClick={() => {
-                      save({ ...profile, team: c })
+                      void save({ ...profile, team: c }).catch(() => {})
                       onClose()
                     }}
                     className={`flex min-h-[52px] w-full items-center gap-2 rounded-2xl px-3 text-left font-bold ring-2 ring-inset transition-colors ${profile.team === c ? 'bg-sun-soft ring-sun' : 'bg-mist ring-mist-deep hover:bg-mist-deep'}`}

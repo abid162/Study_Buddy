@@ -1,6 +1,6 @@
 # Study Buddy: Supabase integration plan
 
-Written 10 November 2026 for a separate build session. Read `HANDOVER.md` first. This plan is based on the code as of commit "Stage road on the Home map, live stage tracker…".
+Written 10 November 2026 for a separate build session. **Status (11 Nov):** steps 1–6 are built (project in London, schema and policies, parent sign-in, profiles, progress sync, answer log); steps 7–9 are still to do. See the Supabase section of `HANDOVER.md`. Read `HANDOVER.md` first. This plan is based on the code as of commit "Stage road on the Home map, live stage tracker…".
 
 ## Goal
 Move everything that currently lives in the browser into Supabase, so that:
