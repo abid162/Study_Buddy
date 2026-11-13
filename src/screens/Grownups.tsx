@@ -1,3 +1,6 @@
+import type { IslandId } from '../data/world'
+import { ParentReport } from './ParentReport'
+import type { QuestDef, Subject } from '../data/syllabus'
 import { useState } from 'react'
 import { ArrowLeftRight, Images, LogIn, LogOut, Users } from 'lucide-react'
 import { useAccount } from '../data/account'
@@ -7,12 +10,13 @@ import { ISLANDS } from '../data/world'
 import { photosFor, picUrl } from '../data/photos'
 
 /** Grown-ups tab: the parent portal is still to come; for now it holds the team's photo library. */
-export function Grownups({ onHome }: { onHome: () => void }) {
+export function Grownups({ onHome, onPractise }: { onHome: () => void; onPractise: (w: IslandId, s: Subject, q: QuestDef) => void }) {
   const [showPhotos, setShowPhotos] = useState(false)
   const account = useAccount()
   const { profile, reset } = useProfile()
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 pb-12 pt-[calc(env(safe-area-inset-top,0px)+20px)] sm:px-8">
+      <ParentReport onPractise={onPractise} />
       <section className="card mb-6 flex flex-wrap items-center gap-4 p-6" aria-labelledby="account-title">
         <div className="min-w-[220px] flex-1">
           <h2 id="account-title" className="font-display text-xl font-semibold">
@@ -50,7 +54,7 @@ export function Grownups({ onHome }: { onHome: () => void }) {
         </div>
         <div className="min-w-[220px] flex-1">
           <h1 className="font-display text-[1.75rem] font-semibold">Grown-ups</h1>
-          <p className="text-ink-soft">Weekly reports, mastery by topic and what to practise next. Arriving in the next preview.</p>
+          <p className="text-ink-soft">Settings and extras for grown-ups, including the photo library each world uses.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <button type="button" className="btn btn-ghost" onClick={() => setShowPhotos((s) => !s)} aria-expanded={showPhotos}>

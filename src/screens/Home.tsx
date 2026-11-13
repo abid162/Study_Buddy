@@ -11,6 +11,10 @@ import { BuddyDuo, ChildAvatar } from '../components/avatar'
 import { nextQuest, useProgress, worldStats } from '../data/progress'
 import { domainName, type QuestDef, type Subject, type Year } from '../data/syllabus'
 import { JOURNEYS } from '../data/journeys'
+import { EPISODES, hasAdventure, readMemory } from '../data/adventure'
+import { useLearning } from '../data/learning'
+import { Buddy } from '../components/art'
+import { allQuests, statementById } from '../data/syllabus'
 
 function greeting() {
   const h = new Date().getHours()
@@ -44,7 +48,7 @@ function LevelAvatar({ value, level, children }: { value: number; level: number;
   )
 }
 
-export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPlay: (w: IslandId, s: Subject, q: QuestDef) => void }) {
+export function Home({ onWorld, onPlay, onAdventure }: { onWorld: (w: IslandId) => void; onPlay: (w: IslandId, s: Subject, q: QuestDef) => void; onAdventure?: (w: IslandId) => void }) {
   const { profile, reset } = useProfile()
   const progress = useProgress()
   const name = profile?.name ?? 'Explorer'
@@ -126,6 +130,8 @@ export function Home({ onWorld, onPlay }: { onWorld: (w: IslandId) => void; onPl
 
       <div className="relative -mt-20 grid gap-6 px-4 pb-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="grid min-w-0 gap-6">
+          <HomeworkCard onPlay={onPlay} />
+          {onAdventure && <AdventureCard onGo={onAdventure} />}
           {up && (
             <motion.section {...rise(0)} className="overflow-hidden rounded-[32px] bg-paper shadow-pop" aria-labelledby="quest-title">
               <div className="relative">
@@ -405,3 +411,85 @@ function StagePanel({
 }
 
 const plural = (w: string) => (/(ch|sh|s|x)$/.test(w) ? `${w}es` : `${w}s`)
+
+/** The story session for the child's first music or football world. */
+function AdventureCard({ onGo }: { onGo: (w: IslandId) => void }) {
+  const { profile } = useProfile()
+  const w = profile?.interests.find((i) => hasAdventure(i))
+  if (!w || !profile) return null
+  const ep = EPISODES[w]!
+  const key = profile.id ?? `${profile.name.toLowerCase()}|${profile.year}`
+  const mem = readMemory(key, w)
+  const island = islandById(w)
+  const line = w === 'music' ? `${profile.name}, you’re about to go on stage! Pick your stage name and your biggest hit to open the show.` : `${profile.name}, it’s match day! Pick your shirt number and help ${profile.team ?? 'your team'} win.`
+  return (
+    <motion.section {...rise(0)} className="overflow-hidden rounded-[32px] bg-paper shadow-pop" aria-labelledby="adv-title">
+      <div className="relative">
+        <Photo island={w} n={3} alt="" className="h-44 sm:h-56" w={1200} banner />
+        <div className="absolute inset-0 bg-gradient-to-t from-night-deep via-night-deep/50 to-transparent" aria-hidden />
+        <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-rose px-3.5 py-1.5 font-display text-sm font-semibold text-white shadow-[0_3px_0_#C2256E] sm:left-6">
+          {ep.meter.icon} New adventure
+        </span>
+        <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
+          <p className="font-bold text-sun">{island.name}</p>
+          <h2 id="adv-title" className="title-pop font-display text-[1.7rem] font-semibold leading-tight sm:text-[2.1rem]">
+            {ep.title}
+          </h2>
+        </div>
+      </div>
+      <div className="grid gap-4 p-5 sm:p-6">
+        <p className="text-[1.0625rem] text-ink-soft">{mem.plays ? `${mem.last?.title ?? ''} Ready for the next one?` : line}</p>
+        <button type="button" className="btn btn-sun sheen w-full text-xl sm:w-auto sm:justify-self-start sm:px-8" onClick={() => onGo(w)}>
+          <Play size={22} className="fill-ink" aria-hidden /> {mem.plays ? (w === 'music' ? 'Next show' : 'Next match') : w === 'music' ? 'Start the show' : 'Kick off'}
+        </button>
+      </div>
+    </motion.section>
+  )
+}
+
+/** After a homework scan: Nova explains the tricky question and brings matching practice into today. */
+function HomeworkCard({ onPlay }: { onPlay: (w: IslandId, s: Subject, q: QuestDef) => void }) {
+  const { pendingScan, markScanDone } = useLearning()
+  const { profile } = useProfile()
+  if (!pendingScan || !profile) return null
+  const t = pendingScan.tricky[0]!
+  const st = statementById(t.cid)
+  const quest = st ? allQuests(profile.year as Year, st.subject).find((x) => x.curriculumId === t.cid && x.playable) : undefined
+  const w = profile.interests[0] ?? 'football'
+  return (
+    <motion.section {...rise(0)} className="relative overflow-hidden rounded-[32px] p-5 shadow-pop sm:p-6" style={{ background: 'linear-gradient(135deg,#ECE6FF 0%,#FFF3CC 100%)' }} aria-labelledby="hw-title">
+      <div className="flex items-start gap-4">
+        <Buddy mood="think" className="float h-20 w-20 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-sm font-bold uppercase tracking-wide text-grape-deep">From your homework{pendingScan.sample ? ' (sample sheet)' : ''}</p>
+          <h2 id="hw-title" className="font-display text-xl font-semibold leading-snug sm:text-2xl">
+            {profile.name}, let’s fix the tricky one together
+          </h2>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-2 rounded-3xl bg-paper p-4">
+        <p className="font-bold">“{t.question}”</p>
+        {t.correct && t.correct !== '—' && <p>The answer is <strong>{t.correct}</strong>.</p>}
+        <p className="text-ink-soft">{t.feedback}</p>
+        {t.steps.length > 0 && (
+          <ol className="mt-1 grid list-decimal gap-1 pl-5 text-ink-soft">
+            {t.steps.slice(0, 4).map((x) => (
+              <li key={x}>{x}</li>
+            ))}
+          </ol>
+        )}
+        {pendingScan.tricky.length > 1 && <p className="text-sm text-ink-soft">And {pendingScan.tricky.length - 1} more from the same sheet are in your practice today.</p>}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-3">
+        {quest && st && (
+          <button type="button" className="btn btn-sun sheen" onClick={() => onPlay(w, st.subject, quest)}>
+            <Play size={20} className="fill-ink" aria-hidden /> Practise this in {islandById(w).name}
+          </button>
+        )}
+        <button type="button" className="btn btn-ghost" onClick={() => markScanDone(pendingScan.id)}>
+          <Check size={20} aria-hidden /> Got it
+        </button>
+      </div>
+    </motion.section>
+  )
+}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, BookOpen, Eye, Gem, Lightbulb, SendHorizontal, Sparkles, Star as StarIcon, Trophy, Volume2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, Check, Eye, Gem, Hand, Lightbulb, SendHorizontal, Sparkles, Square, Star as StarIcon, Trophy, Volume2, VolumeX, X } from 'lucide-react'
 import { Buddy, Photo, type Mood } from '../components/art'
 import { Sparkle } from '../components/scene'
 import { islandById, type IslandId } from '../data/world'
@@ -13,6 +13,9 @@ import { isDone, starsFor, useProgress, worldStats } from '../data/progress'
 import { STAGES, stageInfo } from '../data/stages'
 import { StageClimb, StageStrip } from '../components/journey'
 import { checkAnswer } from '../data/bank'
+import { mathsOptions, wantsTap } from '../data/bank/options'
+import { useLearning } from '../data/learning'
+import { canSpeak, getAutoRead, setAutoRead, speak, speakNext, speakParts, stopSpeaking } from '../data/speech'
 import { fmtPoint, type Pt } from '../data/bank/diagram'
 import { Diagram } from '../components/Diagram'
 import { checkEn } from '../data/english/mark'
@@ -76,21 +79,35 @@ const answerOf = (t: TutorQ) =>
         ? fmtPoint(t.q.answer)
         : t.q.answer.toLocaleString('en-GB', { maximumFractionDigits: 3 }) : t.q.kind === 'open' ? (t.q.model ?? '') : t.q.kind === 'text' ? (t.q.accept ?? [])[0]! : (t.q.answer ?? '')
 
-function speak(text: string) {
-  try {
-    const synth = window.speechSynthesis
-    if (!synth) return false
-    synth.cancel()
-    const u = new SpeechSynthesisUtterance(text)
-    const v = synth.getVoices().find((x) => x.lang === 'en-GB') ?? synth.getVoices().find((x) => x.lang.startsWith('en'))
-    if (v) u.voice = v
-    u.lang = 'en-GB'
-    u.rate = 0.85
-    synth.speak(u)
-    return true
-  } catch {
-    return false
+/** One tap answer: what the child sees, and what is marked. */
+interface Opt {
+  label: string
+  value: string
+}
+
+/** The tap answers for a question, or null when it is answered another way (typing, spelling, the grid, writing). */
+function optionsFor(t: TutorQ | undefined): Opt[] | null {
+  if (!t) return null
+  if (t.kind === 'maths') {
+    if (t.q.choices) return t.q.choices.map((c, i) => ({ label: c, value: String(i) }))
+    if (wantsTap(t.q)) return mathsOptions(t.q)
+    return null
   }
+  if (t.q.kind === 'choice') return (t.q.options ?? []).map((o) => ({ label: o, value: o }))
+  return null
+}
+
+/** The label of the right tap answer. */
+function rightLabel(t: TutorQ, opts: Opt[]): string | undefined {
+  if (t.kind === 'maths') return opts.find((o) => checkAnswer(t.q, o.value).correct)?.label
+  return t.q.answer
+}
+
+/** What Nova reads aloud for a question: the passage, the question, then each answer in turn. */
+function readParts(t: TutorQ, opts: Opt[] | null): string[] {
+  if (t.kind === 'english' && t.q.kind === 'spell') return [t.q.say ?? '']
+  const body = t.kind === 'maths' ? [t.q.text] : [t.q.extract ?? '', t.q.prompt]
+  return [...body.filter(Boolean), ...(opts ?? []).map((o) => o.label)]
 }
 
 /* ---------------- chat model ---------------- */
@@ -155,7 +172,12 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   const QS = useMemo(() => questQuestions(year, subject, questId, world), [year, subject, questId, world])
   const progress = useProgress()
   const saved = progress.get(world, questId)
-  const resumeAt = saved && !isDone(saved) ? Math.min(saved.answered, QS.length - 1) : 0
+  const learning = useLearning()
+  const cidHere = quest?.curriculumId ?? questId
+  const known = learning.mastery.get(cidHere)
+  /** adaptive start: if this is already secure (from another world or quest), skip the warm-up questions */
+  const skipWarmup = !(saved && !isDone(saved)) && known?.status === 'secure' ? Math.max(0, QS.findIndex((q) => q.q.level >= 2)) : 0
+  const resumeAt = saved && !isDone(saved) ? Math.min(saved.answered, QS.length - 1) : skipWarmup
   const statement = subject === 'english' ? ENGLISH_BY_YEAR[year].find((s) => s.id === quest?.curriculumId)?.text ?? quest?.title ?? '' : quest?.title ?? ''
 
   const [idx, setIdx] = useState(resumeAt)
@@ -169,8 +191,18 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   /** tap-the-grid answer for the current question */
   const [picked, setPicked] = useState<Pt | null>(null)
   const [confetti, setConfetti] = useState(0)
+  /** tap answers already tried and wrong, for the current question */
+  const [tried, setTried] = useState<string[]>([])
+  /** read-aloud: on for every new question and Nova's replies */
+  const [autoRead, setAuto] = useState(getAutoRead)
+  /** which part is being read: 0.. = question parts then answers; null = not reading */
+  const [reading, setReading] = useState<number | null>(null)
   const [gain, setGain] = useState({ k: 0, n: 0 })
-  const firstTry = useRef(saved && !isDone(saved) ? saved.firstTry : 0)
+  // questions skipped because the child already knows them count as right first time
+  const firstTry = useRef(saved && !isDone(saved) ? saved.firstTry : skipWarmup)
+  /** adaptive: right first time in a row, and needing help in a row */
+  const streak = useRef(0)
+  const struggle = useRef(0)
   const helped = useRef(saved && !isDone(saved) ? saved.helped ?? 0 : 0)
   const team = profile?.team
   const endRef = useRef<HTMLDivElement>(null)
@@ -207,26 +239,70 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
       resumeAt > 0
         ? `Welcome back, ${childName}! Picking up at question ${resumeAt + 1} of ${QS.length}.`
         : `${journey.quest} time, ${childName}! ${QS.length} questions on: ${statement}.`
+    const homework = learning.scans
+      .slice()
+      .reverse()
+      .flatMap((n) => n.tricky)
+      .find((t) => t.cid === cidHere && learning.scanWeak.has(cidHere))
+    const adapt = homework
+      ? `Your homework showed this one was tricky (“${homework.question}”). ${homework.feedback} Let’s practise it together.`
+      : skipWarmup > 0
+        ? `You already know this well, so we’ll skip the warm-up and start with the harder ones.`
+        : known?.status === 'tricky'
+          ? `This one has been tricky before, so I’ll give you tips as we go. You can do it!`
+          : null
     say([
       { from: 'buddy', text: hello, mood: 'cheer' },
+      ...(adapt ? [{ from: 'buddy' as const, text: adapt, mood: 'happy' as const }] : []),
       { from: 'card', index: resumeAt },
     ])
     return () => t.forEach(clearTimeout)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /** the current question's card, kept in view while the child is still answering it */
+  const cardRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    const last = msgs[msgs.length - 1]
+    // while answering a tap question, keep the question, Nova's latest reply and the answers on screen together
+    const answering = !solved && optionsFor(QS[idx]) && last && (last.from === 'child' || last.from === 'buddy' || last.from === 'hint')
+    if (answering && cardRef.current) cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    else endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msgs, typing])
 
-  // read spelling words aloud when their card appears
+  /** Nova's latest reply or hint for the current question, shown on the card above the answers */
+  const feedback = useMemo(() => {
+    let cardAt = -1
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i]!
+      if (m.from === 'card' && m.index === idx) {
+        cardAt = i
+        break
+      }
+    }
+    if (cardAt < 0) return null
+    for (let i = msgs.length - 1; i > cardAt; i--) {
+      const m = msgs[i]!
+      if (m.from === 'buddy') return { kind: 'buddy' as const, text: m.text, mood: m.mood }
+      if (m.from === 'hint') return { kind: 'hint' as const, text: m.text, level: m.level }
+    }
+    return null
+  }, [msgs, idx])
+
+  // read aloud: spelling words always; everything else when read-aloud is on
   useEffect(() => {
     const last = msgs[msgs.length - 1]
     if (last?.from === 'card') {
       const q = QS[last.index]
       if (q?.kind === 'english' && q.q.kind === 'spell' && q.q.say) speak(q.q.say)
-    }
+      else if (q && autoRead) speakParts(readParts(q, optionsFor(q)), setReading)
+    } else if (last?.from === 'buddy' && autoRead && msgs.length > 1) speakNext(last.text)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msgs, QS])
+
+  // stop talking when leaving the quest
+  useEffect(() => () => stopSpeaking(), [])
 
   const save = (answered: number) => progress.record(world, questId, { answered, firstTry: firstTry.current, helped: helped.current, total: QS.length })
   /** one row in the answer log per finished question (signed-in families only) */
@@ -260,6 +336,8 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
     const clean = hint === 0 && misses === 0
     if (clean) firstTry.current += 1
     else helped.current += 1
+    streak.current = clean ? streak.current + 1 : 0
+    struggle.current = clean ? 0 : struggle.current + 1
     const up = stageUp()
     const cheer = cheerFor(clean)
     setSolved(true)
@@ -286,6 +364,8 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   const reveal = () => {
     if (solved || !cur) return
     setMsgs((c) => [...c, { id: nextId(), from: 'child', text: 'Show me the answer' }])
+    streak.current = 0
+    struggle.current += 1
     const up = stageUp()
     setSolved(true)
     save(idx + 1)
@@ -363,19 +443,70 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   }
 
   const goNext = () => {
-    const ni = idx + 1
+    let ni = idx + 1
+    const notes: NewMsg[] = []
+    const lvl = cur?.q.level ?? 1
+    // got it: three right first time in a row, so move on to harder questions
+    if (streak.current >= 3 && lvl < 3) {
+      const j = QS.findIndex((q, k) => k > idx && q.q.level > lvl)
+      if (j > ni) {
+        firstTry.current += j - ni
+        ni = j
+        save(j)
+        notes.push({ from: 'buddy', text: `Three in a row! You’ve got this, so let’s skip ahead to level ${QS[j]!.q.level}.`, mood: 'cheer' })
+      }
+      streak.current = 0
+    }
+    // stuck: two in a row needed help, so explain the next one a different way before it starts
+    let guide: string | null = null
+    if (struggle.current >= 2 && QS[ni]) {
+      const nq = QS[ni]!
+      guide = nq.kind === 'maths' ? nq.q.hints[1] : nq.q.hints?.[1] ?? null
+      notes.push({ from: 'buddy', text: `Let’s slow down and try this next one a different way.${guide ? ` Here’s how to think about it: ${guide}` : ''}`, mood: 'think' })
+      struggle.current = 0
+    }
     setIdx(ni)
+    setTried([])
+    setReading(null)
     setPicked(null)
     setValue('')
-    setHint(0)
+    setHint(guide ? 1 : 0)
     setMisses(0)
     setSolved(false)
-    say([{ from: 'card', index: ni }], 400)
+    say([...notes, { from: 'card', index: ni }], 400)
   }
 
   const isSpell = cur?.kind === 'english' && cur.q.kind === 'spell'
-  const isChoice = (cur?.kind === 'english' && cur.q.kind === 'choice') || (cur?.kind === 'maths' && !!cur.q.choices)
-  const choiceList = cur?.kind === 'maths' ? (cur.q.choices ?? []) : cur?.kind === 'english' ? (cur.q.options ?? []) : []
+  const opts = useMemo(() => optionsFor(cur), [cur])
+  const isChoice = !!opts
+  const right = cur && opts ? rightLabel(cur, opts) : undefined
+  const choose = (o: Opt) => {
+    if (solved || busy || tried.includes(o.label)) return
+    stopSpeaking()
+    setReading(null)
+    if (o.label !== right) setTried((t) => [...t, o.label])
+    submit(o.value, o.label)
+  }
+  const readCard = () => {
+    if (!cur) return
+    if (reading !== null) {
+      stopSpeaking()
+      setReading(null)
+      return
+    }
+    speakParts(readParts(cur, opts), setReading)
+  }
+  const toggleAuto = () => {
+    const on = !autoRead
+    setAuto(on)
+    setAutoRead(on)
+    if (on && cur && !solved) speakParts(readParts(cur, opts), setReading)
+    else {
+      stopSpeaking()
+      setReading(null)
+    }
+  }
+  const bodyParts = cur ? readParts(cur, null).length : 0
   const isPick = cur?.kind === 'maths' && !!cur.q.pick
   const isOpen = cur?.kind === 'english' && cur.q.kind === 'open'
   const canReveal = hint >= 3 || misses >= 2
@@ -423,6 +554,17 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
               </div>
             )}
           </div>
+          {canSpeak() && (
+            <button
+              type="button"
+              onClick={toggleAuto}
+              aria-pressed={autoRead}
+              aria-label={autoRead ? 'Read-aloud is on. Tap to turn it off' : 'Read-aloud is off. Tap to turn it on'}
+              className={`grid h-11 w-11 shrink-0 place-items-center rounded-full transition-transform hover:-translate-y-0.5 active:translate-y-0.5 ${autoRead ? 'bg-sun text-ink shadow-[0_3px_0_#C98F00]' : 'bg-white/15 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.25)]'}`}
+            >
+              {autoRead ? <Volume2 size={22} aria-hidden /> : <VolumeX size={22} aria-hidden />}
+            </button>
+          )}
           <span className="relative shrink-0">
             <motion.span key={progress.gems} initial={{ scale: 1.3 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 12 }} className="hud">
               <span className="hud-icon bg-sea">
@@ -475,7 +617,27 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
                       </div>
                     </div>
                   )}
-                  {m.from === 'card' && QS[m.index] && <QuestionCard t={QS[m.index]!} n={m.index} total={total} world={world} year={year} subject={subject} statement={statement} photo={photoStart + m.index} picked={m.index === idx && !solved ? picked : null} onPick={m.index === idx && !solved ? (p) => { setPicked(p); setValue(`${p[0]},${p[1]}`) } : undefined} />}
+                  {m.from === 'card' && QS[m.index] && (
+                    <div ref={m.index === idx ? cardRef : undefined} className="scroll-mb-4">
+                    <QuestionCard
+                      t={QS[m.index]!}
+                      n={m.index}
+                      total={total}
+                      world={world}
+                      year={year}
+                      subject={subject}
+                      statement={statement}
+                      photo={photoStart + m.index}
+                      picked={m.index === idx && !solved ? picked : null}
+                      onPick={m.index === idx && !solved ? (p) => { setPicked(p); setValue(`${p[0]},${p[1]}`) } : undefined}
+                      live={
+                        m.index === idx
+                          ? { opts, tried, right, solved, busy, onChoose: choose, reading, bodyParts, onRead: canSpeak() ? readCard : undefined, feedback: solved ? null : feedback }
+                          : undefined
+                      }
+                    />
+                    </div>
+                  )}
                   {m.from === 'next' && (
                     <div className="flex flex-wrap gap-3 pl-14">
                       <button type="button" className={`btn btn-sun flex-1 basis-full whitespace-nowrap px-4 sm:basis-0 ${idx === m.index ? 'sheen' : ''}`} onClick={goNext} disabled={idx !== m.index}>
@@ -555,24 +717,16 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
                   </button>
                 ))}
               </div>
-              {isChoice && !solved ? (
-                <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Choose an answer">
-                  {choiceList.map((o, oi) => (
-                    <motion.button
-                      key={o}
-                      type="button"
-                      onClick={() => (cur?.kind === 'maths' ? submit(String(oi), o) : submit(o))}
-                      disabled={busy}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: oi * 0.05 }}
-                      whileTap={{ y: 3 }}
-                      className="min-h-[58px] whitespace-pre-line rounded-[20px] bg-paper px-4 py-3 text-left text-[1.0625rem] font-bold text-ink ring-2 ring-inset ring-mist-deep transition-colors hover:bg-grape-soft hover:ring-grape"
-                    >
-                      {o}
-                    </motion.button>
-                  ))}
-                </div>
+              {isChoice ? (
+                <p className="flex min-h-[58px] items-center justify-center gap-2 rounded-[20px] bg-mist px-4 text-center font-bold text-ink-soft">
+                  {solved ? (
+                    'Great work! Tap Next question above.'
+                  ) : (
+                    <>
+                      <Hand size={20} aria-hidden /> Tap your answer on the card
+                    </>
+                  )}
+                </p>
               ) : (
                 <form onSubmit={onForm} className="flex items-end gap-2">
                   <label htmlFor="answer" className="sr-only">
@@ -638,7 +792,22 @@ export function Tutor({ world, subject, questId, onExit, onQuest }: { world: Isl
   )
 }
 
-function QuestionCard({ t, n, total, world, year, subject, statement, photo, picked, onPick }: { t: TutorQ; n: number; total: number; world: IslandId; year: number; subject: Subject; statement: string; photo: number; picked?: Pt | null; onPick?: (p: Pt) => void }) {
+interface Live {
+  opts: Opt[] | null
+  tried: string[]
+  right?: string
+  solved: boolean
+  busy: boolean
+  onChoose: (o: Opt) => void
+  /** part being read aloud (question parts first, then answers) */
+  reading: number | null
+  bodyParts: number
+  onRead?: () => void
+  /** Nova's latest reply or hint for this question */
+  feedback?: { kind: 'buddy' | 'hint'; text: string; mood?: Mood; level?: number } | null
+}
+
+function QuestionCard({ t, n, total, world, year, subject, statement, photo, picked, onPick, live }: { t: TutorQ; n: number; total: number; world: IslandId; year: number; subject: Subject; statement: string; photo: number; picked?: Pt | null; onPick?: (p: Pt) => void; live?: Live }) {
   const journey = JOURNEYS[world]
   const island = islandById(world)
   const star = starIn(world, textOf(t))
@@ -681,7 +850,7 @@ function QuestionCard({ t, n, total, world, year, subject, statement, photo, pic
         )}
         {t.kind === 'maths' ? (
           <>
-            <p className="font-display text-xl font-semibold leading-snug sm:text-2xl">{t.q.text}</p>
+            <p className={`rounded-xl font-display text-xl font-semibold leading-snug transition-colors sm:text-2xl ${live?.reading === 0 ? 'bg-sun-soft' : ''}`}>{t.q.text}</p>
             {t.q.diagram && <Diagram d={t.q.diagram} picked={picked} onPick={onPick} />}
             {t.q.pick && onPick && <p className="mt-2 text-center text-sm font-bold text-ink-soft">{picked ? `You picked (${picked[0]}, ${picked[1]}). Press Check, or tap again to change it.` : 'Tap a point where the grid lines cross.'}</p>}
           </>
@@ -691,8 +860,73 @@ function QuestionCard({ t, n, total, world, year, subject, statement, photo, pic
             {t.q.kind === 'spell' && (
               <p className="mb-3 rounded-2xl bg-mist p-4 text-center font-display text-2xl font-semibold tracking-wide">{t.q.extract}</p>
             )}
-            <p className="font-display text-xl font-semibold leading-snug sm:text-2xl">{t.q.prompt}</p>
+            <p className={`rounded-xl font-display text-xl font-semibold leading-snug transition-colors sm:text-2xl ${live && live.reading !== null && live.reading === live.bodyParts - 1 ? 'bg-sun-soft' : ''}`}>{t.q.prompt}</p>
           </>
+        )}
+        {live?.onRead && (
+          <button
+            type="button"
+            onClick={live.onRead}
+            className={`mt-4 inline-flex min-h-[48px] items-center gap-2 rounded-full px-5 font-bold transition-transform active:translate-y-0.5 ${live.reading !== null ? 'bg-grape text-white shadow-[0_4px_0_#4B2FCC]' : 'bg-grape-soft text-grape-deep shadow-[inset_0_0_0_2px_#C9BEFF,0_4px_0_#C9BEFF]'}`}
+          >
+            {live.reading !== null ? <Square size={18} className="fill-current" aria-hidden /> : <Volume2 size={20} aria-hidden />}
+            {live.reading !== null ? 'Stop reading' : 'Read it to me'}
+          </button>
+        )}
+        {live?.opts && live.feedback && (
+          <motion.div
+            key={live.feedback.text}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`mt-4 flex items-start gap-3 rounded-3xl p-3 pr-4 ${live.feedback.kind === 'hint' ? 'bg-sun-soft shadow-[inset_0_0_0_2px_#FFD86B]' : 'bg-grape-soft shadow-[inset_0_0_0_2px_#D6CCFF]'}`}
+            role="status"
+          >
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#FFE7C2] shadow-[inset_0_0_0_2.5px_#fff]">
+              {live.feedback.kind === 'hint' ? <Lightbulb size={20} className="text-[#C98F00]" aria-hidden /> : <Buddy mood={live.feedback.mood ?? 'think'} className="h-9 w-9" />}
+            </span>
+            <p className="pt-1 text-[1.0625rem] font-semibold leading-snug">
+              {live.feedback.kind === 'hint' && <span className="block text-xs font-bold uppercase tracking-wide text-[#A57400]">Hint {live.feedback.level} of 3</span>}
+              {live.feedback.text}
+            </p>
+          </motion.div>
+        )}
+        {live?.opts && (
+          <div className={`mt-4 grid gap-3 ${live.opts.every((o) => o.label.length <= 14) ? 'grid-cols-2' : 'grid-cols-1'}`} role="group" aria-label="Choose an answer">
+            {live.opts.map((o, i) => {
+              const wrong = live.tried.includes(o.label)
+              const isRight = live.solved && o.label === live.right
+              const dim = live.solved && !isRight
+              const read = live.reading === live.bodyParts + i
+              return (
+                <motion.button
+                  key={o.label}
+                  type="button"
+                  onClick={() => live.onChoose(o)}
+                  disabled={live.solved || live.busy || wrong}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={wrong ? { opacity: 1, y: 0, x: [0, -6, 6, -4, 4, 0] } : { opacity: 1, y: 0, scale: isRight ? [1, 1.06, 1] : 1 }}
+                  transition={{ delay: wrong || isRight ? 0 : i * 0.05 }}
+                  whileTap={{ y: 4 }}
+                  aria-label={wrong ? `${o.label}, not this one` : isRight ? `${o.label}, the right answer` : o.label}
+                  className={`relative flex min-h-[68px] items-center justify-center gap-2 whitespace-pre-line rounded-[22px] px-4 py-3 text-center font-display text-xl font-semibold leading-snug transition-colors sm:text-2xl ${
+                    isRight
+                      ? 'bg-[#2BB673] text-white shadow-[0_5px_0_#1B8A55]'
+                      : wrong
+                        ? 'bg-[#FFE4E1] text-ink-soft line-through decoration-[3px] shadow-[inset_0_0_0_2px_#FFB4A9]'
+                        : dim
+                          ? 'bg-mist text-ink-soft opacity-60'
+                          : read
+                            ? 'bg-sun-soft text-ink shadow-[inset_0_0_0_3px_#FFC93C,0_5px_0_#E8C55A]'
+                            : 'bg-paper text-ink shadow-[inset_0_0_0_2.5px_#CFD4F0,0_5px_0_#CDD2EE] hover:bg-grape-soft hover:shadow-[inset_0_0_0_2.5px_#7C5CFF,0_5px_0_#B9A8FF]'
+                  } ${o.label.length > 14 ? 'justify-start text-left text-lg sm:text-xl' : ''}`}
+                >
+                  {isRight && <Check size={24} strokeWidth={3} className="shrink-0" aria-hidden />}
+                  {wrong && <X size={22} strokeWidth={3} className="shrink-0 text-coral-deep" aria-hidden />}
+                  <span>{o.label}</span>
+                </motion.button>
+              )
+            })}
+          </div>
         )}
         <p className="mt-4 rounded-2xl bg-[#F4F5FE] px-3 py-2 text-sm text-ink-soft">
           Year {year} {subject}: {statement}

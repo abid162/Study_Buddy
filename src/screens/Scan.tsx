@@ -4,6 +4,7 @@ import { Camera, Check, ChevronDown, CircleHelp, ImageUp, Play, RotateCcw, ScanL
 import { Buddy } from '../components/art'
 import { useProfile } from '../data/profile'
 import { prepareSheet, scanHomework, type ScanItem, type ScanResult } from '../data/ai'
+import { useLearning } from '../data/learning'
 import { sampleResult } from '../data/scanSamples'
 import { allQuests, statementById, type QuestDef, type Subject, type Year } from '../data/syllabus'
 import { islandById, type IslandId } from '../data/world'
@@ -31,6 +32,25 @@ export function Scan({ onPractise }: { onPractise: (world: IslandId, subject: Su
   const camRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const abort = useRef<AbortController | null>(null)
+  const { addScan } = useLearning()
+
+  /** every marked sheet feeds the learning record; tricky questions come back with Nova next session */
+  const keep = (result: ScanResult, sample: boolean) => {
+    const marked = result.items.filter((it) => it.status !== 'unclear' && it.curriculum_id)
+    addScan(
+      {
+        id: crypto.randomUUID(),
+        at: new Date().toISOString(),
+        subject: result.subject,
+        score: result.score,
+        sample,
+        tricky: marked
+          .filter((it) => it.status !== 'correct')
+          .map((it) => ({ cid: it.curriculum_id, question: it.question, correct: it.correct_answer, feedback: it.feedback, steps: it.steps })),
+      },
+      marked.map((it) => ({ cid: it.curriculum_id, ok: it.status === 'correct' })),
+    )
+  }
 
   useEffect(() => {
     if (step.s !== 'scanning') return
@@ -57,7 +77,10 @@ export function Scan({ onPractise }: { onPractise: (world: IslandId, subject: Su
     try {
       const result = await scanHomework(base64, year, pick, abort.current.signal)
       if (!result.readable || !result.items.length) setStep({ s: 'error', message: 'Nova couldn’t read that sheet clearly. Try a sharper photo in good light, with the whole page in the frame.', base64, preview })
-      else setStep({ s: 'result', result, preview, sample: false })
+      else {
+        keep(result, false)
+        setStep({ s: 'result', result, preview, sample: false })
+      }
     } catch (e) {
       setStep({ s: 'error', message: `${(e as Error).message || 'Something went wrong.'} You can try again, or look at a sample sheet.`, base64, preview })
     }
@@ -65,7 +88,11 @@ export function Scan({ onPractise }: { onPractise: (world: IslandId, subject: Su
 
   const sample = () => {
     setStep({ s: 'scanning' })
-    window.setTimeout(() => setStep({ s: 'result', result: sampleResult(year, pick === 'english' ? 'english' : 'maths'), sample: true }), 2600)
+    window.setTimeout(() => {
+      const result = sampleResult(year, pick === 'english' ? 'english' : 'maths')
+      keep(result, true)
+      setStep({ s: 'result', result, sample: true })
+    }, 2600)
   }
 
   const questFor = (cid: string): [Subject, QuestDef] | undefined => {

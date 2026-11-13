@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "verify": "tsx scripts/bank/verify.ts && tsx scripts/english/verify.ts",
+    "verify": "tsx scripts/bank/verify.ts && tsx scripts/bank/options-check.ts && tsx scripts/adventure-check.ts && tsx scripts/english/verify.ts",
     "n8n": "tsx scripts/build-n8n.ts"
   },
   "dependencies": {

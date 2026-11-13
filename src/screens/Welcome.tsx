@@ -7,7 +7,7 @@ import { useAccount } from '../data/account'
 
 export const PASSCODE = 'buddy2026'
 
-type View = 'choose' | 'email' | 'code' | 'demo'
+type View = 'choose' | 'email' | 'code' | 'demo' | 'link'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const inputCls =
@@ -15,20 +15,54 @@ const inputCls =
 const slide = { initial: { opacity: 0, x: 20 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -20 }, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] as const } }
 
 /** First screen: grown-ups sign in to save progress, or anyone with the passcode tries the demo. */
+/** What the address bar says when someone arrives from an email. */
+function fromEmail() {
+  const q = new URLSearchParams(window.location.search)
+  const h = new URLSearchParams(window.location.hash.slice(1))
+  const hash = q.get('sb_token_hash')
+  const type = q.get('sb_type') === 'signup' ? 'signup' : 'email'
+  // an old-style link that failed (used up, often by a work email's link scanner, or expired)
+  const failed = h.get('error_code') || h.get('error')
+  return { hash, type: type as 'email' | 'signup', failed: !!failed }
+}
+
+const tidyAddress = () => history.replaceState(null, '', window.location.pathname)
+
 export function Welcome() {
-  const { configured, sendCode, verifyCode, startDemo } = useAccount()
-  const [view, setView] = useState<View>(configured ? 'choose' : 'demo')
+  const { configured, sendCode, verifyCode, verifyLink, startDemo } = useAccount()
+  const [arrival] = useState(fromEmail)
+  const [view, setView] = useState<View>(!configured ? 'demo' : arrival.hash ? 'link' : arrival.failed ? 'email' : 'choose')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [pass, setPass] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(arrival.failed && !arrival.hash ? 'That sign-in link has expired or was already used. Type your email to get a new code.' : '')
   const [busy, setBusy] = useState(false)
   const [wait, setWait] = useState(0)
   const focusRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (view !== 'choose') focusRef.current?.focus()
+    if (view !== 'choose' && view !== 'link') focusRef.current?.focus()
   }, [view])
+
+  // clear the error details from the address bar
+  useEffect(() => {
+    if (arrival.failed && !arrival.hash) tidyAddress()
+  }, [arrival])
+
+  const finishLink = async () => {
+    if (!arrival.hash) return
+    setBusy(true)
+    setError('')
+    try {
+      await verifyLink(arrival.hash, arrival.type)
+      tidyAddress()
+    } catch (err) {
+      tidyAddress()
+      setError((err as Error).message)
+      setBusy(false)
+      setView('email')
+    }
+  }
 
   useEffect(() => {
     if (!wait) return
@@ -43,7 +77,8 @@ export function Welcome() {
 
   const send = async (e?: FormEvent) => {
     e?.preventDefault()
-    const clean = email.trim().toLowerCase()
+    // forgive a stray full stop, comma or space at the end, a common slip on phones
+    const clean = email.trim().toLowerCase().replace(/[.,;:\s]+$/, '')
     if (!EMAIL.test(clean)) return setError('Type your full email address, like name@example.com.')
     setBusy(true)
     setError('')
@@ -115,6 +150,20 @@ export function Welcome() {
                   <Sparkles size={20} aria-hidden /> Try the demo
                 </button>
                 <p className="mt-4 text-center text-sm text-ink-soft">New here? Signing in creates your account. No password needed.</p>
+              </motion.div>
+            )}
+
+            {view === 'link' && (
+              <motion.div key="link" {...slide} className="mt-6 text-center">
+                <p className="text-ink-soft">You’re one tap away from signing in.</p>
+                {error && (
+                  <p role="alert" className="mt-3 font-bold text-coral-deep">
+                    {error}
+                  </p>
+                )}
+                <button type="button" className="btn btn-sun sheen mt-6 w-full text-xl" onClick={() => void finishLink()} disabled={busy}>
+                  {busy ? 'Signing you in…' : 'Finish signing in'}
+                </button>
               </motion.div>
             )}
 

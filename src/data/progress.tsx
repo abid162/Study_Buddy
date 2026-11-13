@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useProfile } from './profile'
 import { useAccount } from './account'
+import { useLearning } from './learning'
 import { supabase } from './supabase'
 import { enqueue, flush, type ProgressRow } from './progress.sync'
 import type { IslandId } from './world'
@@ -69,6 +70,7 @@ function persist(store: Store) {
 export function ProgressProvider({ children }: { children: ReactNode }) {
   const { profile } = useProfile()
   const { mode, userId } = useAccount()
+  const { record: learn } = useLearning()
   const childId = mode === 'parent' ? profile?.id ?? null : null
   const who = childId ? `id:${childId}` : profile ? `${profile.name.toLowerCase()}|${profile.year}` : ''
   const legacy = profile ? `${profile.name.toLowerCase()}|${profile.year}` : ''
@@ -156,14 +158,17 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
   const log = useCallback(
     (a: AnswerLog) => {
+      const at = new Date().toISOString()
+      // the learning record (mastery, parent view) keeps every answer, in the demo too
+      learn({ at, cid: a.curriculumId, outcome: a.outcome, source: a.questId.startsWith('adventure:') ? 'adventure' : 'quest', world: a.world })
       if (!childId || !userId) return
       enqueue(userId, {
         kind: 'answer',
-        row: { child_id: childId, world: a.world, subject: a.subject, quest_id: a.questId, curriculum_id: a.curriculumId, outcome: a.outcome, hints: a.hints, answered_at: new Date().toISOString() },
+        row: { child_id: childId, world: a.world, subject: a.subject, quest_id: a.questId, curriculum_id: a.curriculumId, outcome: a.outcome, hints: a.hints, answered_at: at },
       })
       void flush(userId)
     },
-    [childId, userId],
+    [childId, userId, learn],
   )
 
   const value = useMemo<Ctx>(() => {

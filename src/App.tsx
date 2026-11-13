@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { Shell, type Tab } from './components/shell'
 import type { IslandId } from './data/world'
 import { Welcome } from './screens/Welcome'
+import { Adventure } from './screens/Adventure'
 import { ChildPicker } from './screens/ChildPicker'
 import { AccountProvider, useAccount } from './data/account'
+import { LearningProvider } from './data/learning'
 import { Home } from './screens/Home'
 import { Tutor } from './screens/Tutor'
 import { World } from './screens/World'
@@ -19,9 +21,11 @@ export default function App() {
   return (
     <AccountProvider>
       <ProfileProvider>
-        <ProgressProvider>
-          <Root />
-        </ProgressProvider>
+        <LearningProvider>
+          <ProgressProvider>
+            <Root />
+          </ProgressProvider>
+        </LearningProvider>
       </ProfileProvider>
     </AccountProvider>
   )
@@ -39,6 +43,8 @@ function Root() {
   const [world, setWorld] = useState<IslandId | null>(null)
   const [play, setPlay] = useState<Play | null>(null)
   const [from, setFrom] = useState<Tab>('home')
+  /** a story session (concert night, match day) */
+  const [adv, setAdv] = useState<IslandId | null>(null)
 
   // a new child or a switch of child starts on Home
   const childKey = profile?.id ?? profile?.name ?? ''
@@ -47,6 +53,7 @@ function Root() {
     setTab('home')
     setWorld(null)
     setPlay(null)
+    setAdv(null)
     window.scrollTo({ top: 0 })
   }, [childKey, account.mode])
 
@@ -79,6 +86,17 @@ function Root() {
     return <Onboarding onCancel={account.mode === 'parent' ? () => setAdding(false) : undefined} />
   }
 
+  if (adv)
+    return (
+      <Adventure
+        world={adv}
+        onExit={() => {
+          setAdv(null)
+          top()
+        }}
+      />
+    )
+
   return (
     <Shell tab={tab} onTab={go} hideNav={tab === 'tutor'}>
       {tab === 'home' && !world && (
@@ -88,6 +106,10 @@ function Root() {
             top()
           }}
           onPlay={(w, s, q) => start(w, s, q, 'home')}
+          onAdventure={(w) => {
+            setAdv(w)
+            top()
+          }}
         />
       )}
       {tab === 'home' && world && (
@@ -116,7 +138,7 @@ function Root() {
       )}
       {tab === 'scan' && <Scan onPractise={(w, s, q) => start(w, s, q, 'scan')} />}
       {tab === 'read' && <Soon tab={tab} onHome={() => go('home')} />}
-      {tab === 'parent' && <Grownups onHome={() => go('home')} />}
+      {tab === 'parent' && <Grownups onHome={() => go('home')} onPractise={(w, s, q) => start(w, s, q, 'parent')} />}
     </Shell>
   )
 }

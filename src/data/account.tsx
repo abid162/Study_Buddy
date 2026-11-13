@@ -47,6 +47,8 @@ interface Ctx {
   leaveDemo: () => void
   sendCode: (email: string) => Promise<void>
   verifyCode: (email: string, code: string) => Promise<void>
+  /** finish a sign-in from the email button (needs a tap, so mail scanners can't use the link up) */
+  verifyLink: (tokenHash: string, type: 'email' | 'signup') => Promise<void>
   signOut: () => Promise<void>
   /** children of the signed-in parent */
   kids: Child[]
@@ -67,7 +69,7 @@ export function friendlyError(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? String(e)
   const status = (e as { status?: number })?.status
   if (/rate limit|too many|429/i.test(msg) || status === 429) return 'Too many emails were sent just now. Wait a minute, then try again.'
-  if (/expired|invalid.*(otp|token)|token.*(invalid|expired)/i.test(msg)) return 'That code has expired or doesn’t match. Check the latest email, or send a new code.'
+  if (/expired|invalid.*(otp|token)|token.*(invalid|expired)|not found/i.test(msg)) return 'That code or link has expired or was already used. Send yourself a new one and use the newest email.'
   if (/invalid.*email|email.*invalid/i.test(msg)) return 'That email address doesn’t look right. Check it and try again.'
   if (/fetch|network|failed to/i.test(msg)) return 'Study Buddy can’t reach the server. Check your internet connection and try again.'
   return msg || 'Something went wrong. Try again.'
@@ -207,6 +209,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(friendlyError(error))
   }, [])
 
+  const verifyLink = useCallback(async (tokenHash: string, type: 'email' | 'signup') => {
+    if (!supabase) throw new Error('Sign-in isn’t set up on this site yet.')
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+    if (error) throw new Error(friendlyError(error))
+  }, [])
+
   const signOut = useCallback(async () => {
     if (supabase) await supabase.auth.signOut()
     setSession(null)
@@ -261,6 +269,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       leaveDemo,
       sendCode,
       verifyCode,
+      verifyLink,
       signOut,
       kids,
       kidsReady,
@@ -272,7 +281,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       choose,
       saveChild,
     }),
-    [ready, mode, session, userId, startDemo, leaveDemo, sendCode, verifyCode, signOut, kids, kidsReady, kidsError, reloadKids, hasTerms, agreeTerms, activeId, choose, saveChild],
+    [ready, mode, session, userId, startDemo, leaveDemo, sendCode, verifyCode, verifyLink, signOut, kids, kidsReady, kidsError, reloadKids, hasTerms, agreeTerms, activeId, choose, saveChild],
   )
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>

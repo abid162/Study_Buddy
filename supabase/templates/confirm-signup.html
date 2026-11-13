@@ -1,0 +1,6 @@
+<h2 style="font-family:Arial,sans-serif;color:#17153A">Welcome to Study Buddy: your sign-in code</h2>
+<p style="font-family:Arial,sans-serif;color:#4A4870">Type this code in Study Buddy:</p>
+<p style="font-family:Arial,sans-serif;font-size:32px;font-weight:bold;letter-spacing:6px;color:#17153A">{{ .Token }}</p>
+<p style="font-family:Arial,sans-serif;color:#4A4870">Or tap the button, then tap <strong>Finish signing in</strong>:</p>
+<p><a href="{{ if .RedirectTo }}{{ .RedirectTo }}{{ else }}{{ .SiteURL }}{{ end }}?sb_token_hash={{ .TokenHash }}&amp;sb_type=email" style="display:inline-block;background:#FFC93C;color:#17153A;font-family:Arial,sans-serif;font-weight:bold;padding:14px 24px;border-radius:14px;text-decoration:none">Sign in to Study Buddy</a></p>
+<p style="font-family:Arial,sans-serif;font-size:13px;color:#8A88AD">The code and button work once and expire after an hour. If you didn't ask to sign in, you can ignore this email.</p>
