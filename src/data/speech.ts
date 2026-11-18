@@ -105,3 +105,23 @@ export function speakNext(text: string) {
   u.rate = 0.9
   window.speechSynthesis.speak(u)
 }
+
+/**
+ * Read a passage aloud and report which word is being spoken (character offset into `text`), so the reading coach can
+ * light up each word as Nova reads it. Browsers that don't report word positions still read it, just without the highlight.
+ */
+export function speakWords(text: string, onWord: (charIndex: number | null) => void, rate = 0.85) {
+  if (!canSpeak()) return false
+  stopSpeaking()
+  const mine = run
+  const u = new SpeechSynthesisUtterance(text.replace(/[\n•]/g, ' '))
+  const v = voice()
+  if (v) u.voice = v
+  u.lang = 'en-GB'
+  u.rate = rate
+  u.onboundary = (e) => mine === run && e.name !== 'sentence' && onWord(e.charIndex)
+  u.onend = () => mine === run && onWord(null)
+  u.onerror = () => mine === run && onWord(null)
+  window.speechSynthesis.speak(u)
+  return true
+}

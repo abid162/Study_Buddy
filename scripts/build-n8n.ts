@@ -1,9 +1,10 @@
 /**
- * Builds the two n8n workflows from the app's own curriculum files, so the scanner and the app always agree.
+ * Builds the three n8n workflows from the app's own curriculum files, so the scanner and the app always agree.
  * Run: npx tsx scripts/build-n8n.ts   → writes n8n/*.json (import them in n8n: Workflows → Import from file)
  */
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { transformSync } from 'esbuild'
 import { MATHS_STATEMENTS } from '../src/data/curriculum.maths'
 import { ENGLISH_BY_YEAR } from '../src/data/english/index'
 
@@ -252,7 +253,96 @@ const marker = {
   pinData: {},
 }
 
+/* ---------- 3. reading coach ---------- */
+// The word matching is the app's own src/data/reading/align.ts, bundled in, so the app's tests cover what n8n runs.
+// Plain functions only: n8n's Code-node sandbox doesn't support a bundler's export wrapper (getters on a module object).
+const ALIGN = transformSync(readFileSync('src/data/reading/align.ts', 'utf8'), { loader: 'ts', target: 'es2020' }).code.replace(/^export (function|const|interface|type) /gm, '$1 ')
+if (/\bexport\b|\bimport\b/.test(ALIGN)) throw new Error('align.ts must stay free of imports and non-function exports')
+
+const readPrep = `// Study Buddy reading coach: checks the request and turns the recording into a file for the speech engine.
+// The recording is never saved: this workflow keeps no execution data.
+const b = $input.first().json.body || {};
+const audio = String(b.audio || '').replace(/^data:[^,]+,/, '');
+const mime = String(b.mime || '').split(';')[0].trim().toLowerCase();
+const TYPES = { 'audio/webm': 'webm', 'audio/mp4': 'mp4', 'audio/x-m4a': 'm4a', 'audio/m4a': 'm4a', 'audio/aac': 'm4a', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav' };
+const text = String(b.text || '').slice(0, 1500).trim();
+if (!audio || audio.length < 2000) return [{ json: { error: 'No recording was received. Tap the microphone and read again.', status: 400 } }];
+if (audio.length > 8000000) return [{ json: { error: 'That recording is too long. Try reading one part at a time.', status: 413 } }];
+if (!TYPES[mime]) return [{ json: { error: 'This browser recorded in a format Nova can’t read yet.', status: 400 } }];
+if (!text) return [{ json: { error: 'No reading text was received.', status: 400 } }];
+return [{ json: { audio, mime, file_name: 'reading.' + TYPES[mime], text } }];`
+
+const readParse = `// Line up what Whisper heard against the text (accent-tolerant, kind), then add Nova's feedback.
+// Generated from src/data/reading/align.ts by scripts/build-n8n.ts – change it there, not here.
+${ALIGN}
+const req = $('Prepare recording').first().json;
+const r = $input.first().json;
+if (!r || (!Array.isArray(r.words) && typeof r.text !== 'string')) {
+  return [{ json: { error: 'Nova couldn’t listen just now. Please try again.', status: 502 } }];
+}
+// Whisper sometimes "hears" words in silence: ignore segments it is sure have no speech in them
+const quiet = (r.segments || []).filter((s) => s.no_speech_prob > 0.6 && s.avg_logprob < -0.8);
+const words = (r.words || []).filter((w) => !quiet.some((s) => w.start >= s.start && w.end <= s.end));
+const result = alignReading(req.text, words.map((w) => ({ word: w.word, start: w.start, end: w.end })));
+const fb = readingFeedback(result);
+return [{ json: { ...result, ...fb, duration: Math.round((r.duration || 0) * 10) / 10 } }];`
+
+const reader = {
+  name: 'Study Buddy: Reading Coach',
+  nodes: [
+    webhook('study-buddy-read'),
+    node('Prepare recording', 'n8n-nodes-base.code', 2, [220, 0], { jsCode: readPrep }),
+    ifValid(),
+    node('Recording to file', 'n8n-nodes-base.convertToFile', 1.1, [660, -100], {
+      operation: 'toBinary',
+      sourceProperty: 'audio',
+      binaryPropertyName: 'audio',
+      options: { fileName: '={{ $json.file_name }}', mimeType: '={{ $json.mime }}' },
+    }),
+    node(
+      'Whisper: what was read',
+      'n8n-nodes-base.httpRequest',
+      4.2,
+      [880, -100],
+      {
+        method: 'POST',
+        url: 'https://api.openai.com/v1/audio/transcriptions',
+        authentication: 'predefinedCredentialType',
+        nodeCredentialType: 'openAiApi',
+        sendBody: true,
+        contentType: 'multipart-form-data',
+        bodyParameters: {
+          parameters: [
+            { parameterType: 'formBinaryData', name: 'file', inputDataFieldName: 'audio' },
+            { name: 'model', value: 'whisper-1' },
+            { name: 'language', value: 'en' },
+            { name: 'response_format', value: 'verbose_json' },
+            { name: 'timestamp_granularities[]', value: 'word' },
+            // Never send the passage as the prompt: Whisper would "correct" the child's reading to match it.
+            { name: 'prompt', value: 'Um, er, the... the dog ran. I, I mean, it ran.' },
+          ],
+        },
+        options: { timeout: 60000 },
+      },
+      { credentials: CREDENTIAL, onError: 'continueRegularOutput' },
+    ),
+    node('Match words and give feedback', 'n8n-nodes-base.code', 2, [1100, -100], { jsCode: readParse }),
+    { ...respond(), position: [1320, 0] },
+  ],
+  connections: {
+    Webhook: { main: [[{ node: 'Prepare recording', type: 'main', index: 0 }]] },
+    'Prepare recording': { main: [[{ node: 'Valid request?', type: 'main', index: 0 }]] },
+    'Valid request?': { main: [[{ node: 'Recording to file', type: 'main', index: 0 }], [{ node: 'Respond', type: 'main', index: 0 }]] },
+    'Recording to file': { main: [[{ node: 'Whisper: what was read', type: 'main', index: 0 }]] },
+    'Whisper: what was read': { main: [[{ node: 'Match words and give feedback', type: 'main', index: 0 }]] },
+    'Match words and give feedback': { main: [[{ node: 'Respond', type: 'main', index: 0 }]] },
+  },
+  settings: SETTINGS,
+  pinData: {},
+}
+
 mkdirSync('n8n', { recursive: true })
 writeFileSync('n8n/study-buddy-homework-scanner.json', JSON.stringify(scanner, null, 2))
 writeFileSync('n8n/study-buddy-english-marking.json', JSON.stringify(marker, null, 2))
-console.log('Wrote n8n/study-buddy-homework-scanner.json and n8n/study-buddy-english-marking.json')
+writeFileSync('n8n/study-buddy-reading-coach.json', JSON.stringify(reader, null, 2))
+console.log('Wrote n8n/study-buddy-homework-scanner.json, n8n/study-buddy-english-marking.json and n8n/study-buddy-reading-coach.json')

@@ -1,5 +1,6 @@
 import type { IslandId } from '../data/world'
 import { ParentReport } from './ParentReport'
+import { ReadingReport } from './ReadingReport'
 import type { QuestDef, Subject } from '../data/syllabus'
 import { useState } from 'react'
 import { ArrowLeftRight, Images, LogIn, LogOut, Users } from 'lucide-react'
@@ -17,6 +18,7 @@ export function Grownups({ onHome, onPractise }: { onHome: () => void; onPractis
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 pb-12 pt-[calc(env(safe-area-inset-top,0px)+20px)] sm:px-8">
       <ParentReport onPractise={onPractise} />
+      <ReadingReport />
       <section className="card mb-6 flex flex-wrap items-center gap-4 p-6" aria-labelledby="account-title">
         <div className="min-w-[220px] flex-1">
           <h2 id="account-title" className="font-display text-xl font-semibold">

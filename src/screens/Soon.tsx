@@ -1,11 +1,10 @@
-import { BookOpen, ScanLine, Users, type LucideIcon } from 'lucide-react'
+import { ScanLine, Users, type LucideIcon } from 'lucide-react'
 import { Buddy } from '../components/art'
 import { Sparkle } from '../components/scene'
 import type { Tab } from '../components/shell'
 
 const COPY: Partial<Record<Tab, { title: string; body: string; icon: LucideIcon }>> = {
   scan: { title: 'Homework scanner', body: 'Snap a worksheet and Nova talks through each question, step by step.', icon: ScanLine },
-  read: { title: 'Reading coach', body: 'Read a story aloud while Nova follows along and cheers you on.', icon: BookOpen },
   parent: { title: 'Grown-ups', body: 'Weekly reports, mastery by topic and what to practise next.', icon: Users },
 }
 

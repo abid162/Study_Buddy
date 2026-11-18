@@ -10,7 +10,7 @@ import { Home } from './screens/Home'
 import { Tutor } from './screens/Tutor'
 import { World } from './screens/World'
 import { Scan } from './screens/Scan'
-import { Soon } from './screens/Soon'
+import { Read } from './screens/Read'
 import { Grownups } from './screens/Grownups'
 import { Onboarding } from './screens/Onboarding'
 import { ProfileProvider, useProfile } from './data/profile'
@@ -137,7 +137,7 @@ function Root() {
         />
       )}
       {tab === 'scan' && <Scan onPractise={(w, s, q) => start(w, s, q, 'scan')} />}
-      {tab === 'read' && <Soon tab={tab} onHome={() => go('home')} />}
+      {tab === 'read' && <Read />}
       {tab === 'parent' && <Grownups onHome={() => go('home')} onPractise={(w, s, q) => start(w, s, q, 'parent')} />}
     </Shell>
   )

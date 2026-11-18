@@ -1,11 +1,13 @@
 /**
- * Calls to Cleartwo's n8n. Both use multipart forms ("simple" requests, so no CORS preflight), like the avatar workflow.
- * Override the URLs with VITE_MARK_WEBHOOK_URL and VITE_SCAN_WEBHOOK_URL.
+ * Calls to Cleartwo's n8n. All use multipart forms ("simple" requests, so no CORS preflight), like the avatar workflow.
+ * Override the URLs with VITE_MARK_WEBHOOK_URL, VITE_SCAN_WEBHOOK_URL and VITE_READ_WEBHOOK_URL.
  */
 import type { EnItem } from './english'
+import type { ReadingResult } from './reading/align'
 
 export const MARK_WEBHOOK = import.meta.env.VITE_MARK_WEBHOOK_URL || 'https://cleartwo.app.n8n.cloud/webhook/study-buddy-mark'
 export const SCAN_WEBHOOK = import.meta.env.VITE_SCAN_WEBHOOK_URL || 'https://cleartwo.app.n8n.cloud/webhook/study-buddy-homework'
+export const READ_WEBHOOK = import.meta.env.VITE_READ_WEBHOOK_URL || 'https://cleartwo.app.n8n.cloud/webhook/study-buddy-read'
 
 async function post(url: string, form: FormData, ms: number, signal?: AbortSignal) {
   const ctrl = new AbortController()
@@ -103,6 +105,43 @@ export async function scanHomework(base64: string, year: number, subject: 'maths
     return d as ScanResult
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw new Error('The scan took too long. Check your connection and try again.')
+    throw e
+  }
+}
+
+/* ---------------- reading coach ---------------- */
+
+export interface ReadReply extends ReadingResult {
+  praise: string
+  tip: string
+  duration: number
+}
+
+const toBase64 = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result).split(',')[1] ?? '')
+    r.onerror = () => reject(new Error('The recording could not be read.'))
+    r.readAsDataURL(blob)
+  })
+
+/**
+ * Send one read-aloud part to n8n. Whisper turns it into words, the app's own matching rules (bundled into the
+ * workflow) line them up with the text, and Nova's feedback comes back. The recording is not kept anywhere.
+ */
+export async function checkReading(audio: Blob, text: string, year: number, signal?: AbortSignal): Promise<ReadReply> {
+  const f = new FormData()
+  f.append('audio', await toBase64(audio))
+  f.append('mime', audio.type || 'audio/webm')
+  f.append('text', text)
+  f.append('year', String(year))
+  try {
+    const d = await post(READ_WEBHOOK, f, 75000, signal)
+    if (!Array.isArray(d.words)) throw new Error('Nova couldn’t listen just now. Please try again.')
+    return d as ReadReply
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') throw new Error('That took too long. Check your connection and try again.')
+    if (/fetch|network/i.test((e as Error).message)) throw new Error('Nova can’t be reached just now. Check your connection and try again.')
     throw e
   }
 }

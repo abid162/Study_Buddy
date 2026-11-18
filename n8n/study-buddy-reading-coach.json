@@ -1,0 +1,259 @@
+{
+  "name": "Study Buddy: Reading Coach",
+  "nodes": [
+    {
+      "id": "7a1d7d4d-218a-462d-a2cc-2e387fd40c1c",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "study-buddy-read",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "webhookId": "e53b0e1a-d0f6-4ab4-b16d-4848bc542bbf"
+    },
+    {
+      "id": "83361368-9ed7-4d30-9ff7-021a3a84407b",
+      "name": "Prepare recording",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Study Buddy reading coach: checks the request and turns the recording into a file for the speech engine.\n// The recording is never saved: this workflow keeps no execution data.\nconst b = $input.first().json.body || {};\nconst audio = String(b.audio || '').replace(/^data:[^,]+,/, '');\nconst mime = String(b.mime || '').split(';')[0].trim().toLowerCase();\nconst TYPES = { 'audio/webm': 'webm', 'audio/mp4': 'mp4', 'audio/x-m4a': 'm4a', 'audio/m4a': 'm4a', 'audio/aac': 'm4a', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav' };\nconst text = String(b.text || '').slice(0, 1500).trim();\nif (!audio || audio.length < 2000) return [{ json: { error: 'No recording was received. Tap the microphone and read again.', status: 400 } }];\nif (audio.length > 8000000) return [{ json: { error: 'That recording is too long. Try reading one part at a time.', status: 413 } }];\nif (!TYPES[mime]) return [{ json: { error: 'This browser recorded in a format Nova can’t read yet.', status: 400 } }];\nif (!text) return [{ json: { error: 'No reading text was received.', status: 400 } }];\nreturn [{ json: { audio, mime, file_name: 'reading.' + TYPES[mime], text } }];"
+      }
+    },
+    {
+      "id": "6d7e8c16-c8ec-4572-befb-740b23bdfb57",
+      "name": "Valid request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "db79cc8a-f45f-49e8-b226-74575a253bc2",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "39aa83c1-bb0d-4c82-928f-040f323960d0",
+      "name": "Recording to file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "audio",
+        "binaryPropertyName": "audio",
+        "options": {
+          "fileName": "={{ $json.file_name }}",
+          "mimeType": "={{ $json.mime }}"
+        }
+      }
+    },
+    {
+      "id": "c4370ca0-70ca-49cf-9693-1ba2190cd7e9",
+      "name": "Whisper: what was read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "audio"
+            },
+            {
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "name": "language",
+              "value": "en"
+            },
+            {
+              "name": "response_format",
+              "value": "verbose_json"
+            },
+            {
+              "name": "timestamp_granularities[]",
+              "value": "word"
+            },
+            {
+              "name": "prompt",
+              "value": "Um, er, the... the dog ran. I, I mean, it ran."
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAi c2 account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "73b998e8-c6cb-4ee5-9e9c-317c7f949ab7",
+      "name": "Match words and give feedback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "// Line up what Whisper heard against the text (accent-tolerant, kind), then add Nova's feedback.\n// Generated from src/data/reading/align.ts by scripts/build-n8n.ts – change it there, not here.\nfunction alignReading(text, heardIn) {\n  const SMALL = /* @__PURE__ */ new Set([\"a\", \"an\", \"the\", \"and\", \"of\", \"to\", \"in\", \"on\", \"at\", \"is\", \"it\", \"as\", \"by\", \"for\", \"or\", \"so\", \"but\", \"be\", \"was\", \"he\", \"she\", \"his\", \"her\", \"i\", \"we\", \"up\", \"with\", \"that\", \"this\", \"its\", \"are\", \"from\"]);\n  const FILLERS = /* @__PURE__ */ new Set([\"um\", \"umm\", \"er\", \"erm\", \"uh\", \"uhh\", \"ah\", \"eh\", \"hmm\", \"mm\", \"mmm\", \"oh\"]);\n  const ONES = [\"zero\", \"one\", \"two\", \"three\", \"four\", \"five\", \"six\", \"seven\", \"eight\", \"nine\", \"ten\", \"eleven\", \"twelve\", \"thirteen\", \"fourteen\", \"fifteen\", \"sixteen\", \"seventeen\", \"eighteen\", \"nineteen\"];\n  const TENS = [\"\", \"\", \"twenty\", \"thirty\", \"forty\", \"fifty\", \"sixty\", \"seventy\", \"eighty\", \"ninety\"];\n  function numberWords(n2) {\n    if (n2 < 20) return ONES[n2];\n    if (n2 < 100) return TENS[Math.floor(n2 / 10)] + (n2 % 10 ? ONES[n2 % 10] : \"\");\n    if (n2 < 1e3) return ONES[Math.floor(n2 / 100)] + \"hundred\" + (n2 % 100 ? \"and\" + numberWords(n2 % 100) : \"\");\n    if (n2 < 1e4) return numberWords(Math.floor(n2 / 1e3)) + \"thousand\" + (n2 % 1e3 ? (n2 % 1e3 < 100 ? \"and\" : \"\") + numberWords(n2 % 1e3) : \"\");\n    return String(n2);\n  }\n  function norm(w) {\n    const s = w.toLowerCase().replace(/[’‘`]/g, \"'\").replace(/[^a-z0-9']/g, \"\").replace(/'/g, \"\");\n    if (/^\\d{1,4}$/.test(s)) return numberWords(Number(s));\n    return s.replace(/our(s?)$/, \"or$1\").replace(/([^aeiou])re(s?)$/, \"$1er$2\").replace(/is(e|es|ed|ing)$/, \"iz$1\").replace(/ogue$/, \"og\").replace(/^grey/, \"gray\");\n  }\n  function fold(w) {\n    let s = w;\n    if (s.length > 4) s = s.replace(/ing$/, \"in\");\n    s = s.replace(/^h(?=[aeiou])/, \"\").replace(/wh/g, \"w\").replace(/ph/g, \"f\").replace(/th/g, \"f\").replace(/v/g, \"f\").replace(/ck/g, \"k\").replace(/c(?=[eiy])/g, \"s\").replace(/c/g, \"k\").replace(/q/g, \"k\").replace(/z/g, \"s\").replace(/x/g, \"ks\").replace(/(?<=[a-z])[aeiou]+r$/, \"a\").replace(/r$/, \"\").replace(/(.)\\1+/g, \"$1\");\n    return s;\n  }\n  function lev(a, b) {\n    if (a === b) return 0;\n    if (!a.length) return b.length;\n    if (!b.length) return a.length;\n    let prev = Array.from({ length: b.length + 1 }, (_, j2) => j2);\n    for (let i2 = 1; i2 <= a.length; i2++) {\n      const cur = [i2];\n      for (let j2 = 1; j2 <= b.length; j2++) cur[j2] = Math.min(prev[j2] + 1, cur[j2 - 1] + 1, prev[j2 - 1] + (a[i2 - 1] === b[j2 - 1] ? 0 : 1));\n      prev = cur;\n    }\n    return prev[b.length];\n  }\n  function sim(a, b) {\n    if (!a || !b) return 0;\n    if (a === b) return 1;\n    const fa = fold(a);\n    const fb = fold(b);\n    if (fa === fb) return 0.95;\n    const d = Math.min(lev(a, b) / Math.max(a.length, b.length), lev(fa, fb) / Math.max(fa.length, fb.length, 1));\n    return Math.max(0, 1 - d);\n  }\n  const enough = (a, s) => s >= (a.length >= 7 ? 0.62 : a.length >= 4 ? 0.68 : 0.99);\n  const raw = text.replace(/[•·]/g, \" \").split(/\\s+/).map((t) => t.trim()).filter((t) => /[A-Za-z0-9]/.test(t));\n  const sentenceStart = (i2) => i2 === 0 || /[.!?:”\"]$/.test(raw[i2 - 1]);\n  const expected = raw.map((t, i2) => {\n    const n2 = norm(t);\n    const letters = t.replace(/[^A-Za-z]/g, \"\");\n    const isName = /^[A-Z][a-z]/.test(letters) && !sentenceStart(i2);\n    const isNumber = /\\d/.test(t);\n    return { text: t, n: n2, minor: SMALL.has(n2) || isName || isNumber || n2.length === 0 };\n  });\n  const heard = heardIn.flatMap(\n    (h) => String(h.word || \"\").split(/[\\s-]+/).filter(Boolean).map((w) => ({ n: norm(w), word: w.replace(/[^A-Za-z0-9'’-]/g, \"\"), start: h.start, end: h.end }))\n  ).filter((h) => h.n && !FILLERS.has(h.n));\n  const n = expected.length;\n  const m = heard.length;\n  const words = expected.map((e) => ({ text: e.text, status: \"skipped\", minor: e.minor || void 0 }));\n  const meaningful = expected.filter((e) => !e.minor).length || n;\n  if (m < Math.max(2, Math.ceil(meaningful * 0.25))) {\n    return { heard: \"too_little\", words: expected.map((e) => ({ text: e.text, status: \"unreached\", minor: e.minor || void 0 })), total: 0, correct: 0, accuracy: 0, stoppedEarly: false, practice: [] };\n  }\n  const SKIP = 1;\n  const EXTRA = 0.55;\n  const SWAP = 1.15;\n  const INF = 1e9;\n  const cost = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(INF));\n  const move = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(\"\"));\n  cost[0][0] = 0;\n  for (let i2 = 0; i2 <= n; i2++) {\n    for (let j2 = 0; j2 <= m; j2++) {\n      const c = cost[i2][j2];\n      if (c >= INF) continue;\n      const relax = (a, b, v, how) => {\n        if (v < cost[a][b]) {\n          cost[a][b] = v;\n          move[a][b] = how;\n        }\n      };\n      if (i2 < n) relax(i2 + 1, j2, c + (expected[i2].minor ? SKIP * 0.6 : SKIP), \"skip\");\n      if (j2 < m) relax(i2, j2 + 1, c + EXTRA, \"extra\");\n      if (i2 < n && j2 < m) {\n        const s = sim(expected[i2].n, heard[j2].n);\n        relax(i2 + 1, j2 + 1, c + (enough(expected[i2].n, s) ? (1 - s) * 0.4 : SWAP), \"pair\");\n        if (j2 + 1 < m) {\n          const s2 = sim(expected[i2].n, heard[j2].n + heard[j2 + 1].n);\n          if (enough(expected[i2].n, s2)) relax(i2 + 1, j2 + 2, c + (1 - s2) * 0.4 + 0.1, \"pair2\");\n        }\n      }\n    }\n  }\n  let i = n;\n  let j = m;\n  while (i > 0 || j > 0) {\n    const how = move[i][j];\n    if (how === \"skip\") {\n      i--;\n    } else if (how === \"extra\") {\n      j--;\n    } else if (how === \"pair\" || how === \"pair2\") {\n      const k = how === \"pair2\" ? 2 : 1;\n      const h = heard.slice(j - k, j);\n      const said = h.map((x) => x.n).join(\"\");\n      const s = sim(expected[i - 1].n, said);\n      const w = words[i - 1];\n      w.heard = h.map((x) => x.word).join(\" \");\n      w.start = h[0].start;\n      w.end = h[h.length - 1].end;\n      w.status = s === 1 || s >= 0.95 && expected[i - 1].n === said ? \"read\" : enough(expected[i - 1].n, s) ? \"close\" : \"swapped\";\n      i--;\n      j -= k;\n    } else break;\n  }\n  let last = -1;\n  words.forEach((w, k) => {\n    if (!w.minor && (w.status === \"read\" || w.status === \"close\" || w.status === \"swapped\")) last = k;\n  });\n  const trailing = words.slice(last + 1).filter((w) => !w.minor).length;\n  const stoppedEarly = trailing >= 3;\n  if (stoppedEarly) for (let k = last + 1; k < n; k++) words[k].status = \"unreached\";\n  for (const w of words) if (w.minor && (w.status === \"swapped\" || w.status === \"skipped\")) w.status = \"read\";\n  const counted = words.filter((w) => !w.minor && w.status !== \"unreached\");\n  const correct = counted.filter((w) => w.status === \"read\" || w.status === \"close\").length;\n  const seen = /* @__PURE__ */ new Set();\n  const practice = [];\n  for (const w of words) {\n    if (w.minor || w.status !== \"skipped\" && w.status !== \"swapped\") continue;\n    const clean = w.text.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, \"\");\n    const key = clean.toLowerCase();\n    if (!clean || seen.has(key)) continue;\n    seen.add(key);\n    practice.push(w.status === \"swapped\" && w.heard ? { word: clean, heard: w.heard } : { word: clean });\n    if (practice.length === 5) break;\n  }\n  return {\n    heard: \"ok\",\n    words: words.map((w) => w.minor ? w : { ...w, minor: void 0 }),\n    total: counted.length,\n    correct,\n    accuracy: counted.length ? correct / counted.length : 1,\n    stoppedEarly,\n    practice\n  };\n}\nfunction readingFeedback(r) {\n  if (r.heard === \"too_little\")\n    return { praise: \"I couldn\\u2019t hear much that time.\", tip: \"Hold the device a little closer and read in your normal voice. Tap the microphone when you\\u2019re ready.\" };\n  const pick = (xs) => xs[(r.total + r.correct) % xs.length];\n  const praise = r.accuracy >= 0.95 ? pick([\"Brilliant reading!\", \"Wow, every word came through clearly!\", \"Superstar reading!\"]) : r.accuracy >= 0.85 ? pick([\"Great reading!\", \"Lovely clear reading!\", \"Really good reading!\"]) : r.accuracy >= 0.7 ? pick([\"Good reading, you\\u2019re nearly there!\", \"Nice work, keep going!\"]) : pick([\"Good try! Let\\u2019s practise a few words together.\", \"Well done for having a go!\"]);\n  let tip;\n  if (r.stoppedEarly) tip = \"You stopped before the end of this part. Want to read the rest?\";\n  else if (r.practice.length === 1) tip = `Let\\u2019s practise \\u201C${r.practice[0].word}\\u201D. Tap it to hear how it sounds.`;\n  else if (r.practice.length > 1) tip = `Tap the yellow words to hear them, then try this part again if you like.`;\n  else tip = pick([\"Next time, try reading it like a storyteller, with lots of expression.\", \"Ready for the next part?\"]);\n  return { praise, tip };\n}\n\nconst req = $('Prepare recording').first().json;\nconst r = $input.first().json;\nif (!r || (!Array.isArray(r.words) && typeof r.text !== 'string')) {\n  return [{ json: { error: 'Nova couldn’t listen just now. Please try again.', status: 502 } }];\n}\n// Whisper sometimes \"hears\" words in silence: ignore segments it is sure have no speech in them\nconst quiet = (r.segments || []).filter((s) => s.no_speech_prob > 0.6 && s.avg_logprob < -0.8);\nconst words = (r.words || []).filter((w) => !quiet.some((s) => w.start >= s.start && w.end <= s.end));\nconst result = alignReading(req.text, words.map((w) => ({ word: w.word, start: w.start, end: w.end })));\nconst fb = readingFeedback(result);\nreturn [{ json: { ...result, ...fb, duration: Math.round((r.duration || 0) * 10) / 10 } }];"
+      }
+    },
+    {
+      "id": "63690469-d9ec-4a6f-b106-5f306f59524f",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify((({ status, ...rest }) => rest)($json)) }}",
+        "options": {
+          "responseCode": "={{ $json.status || 200 }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare recording": {
+      "main": [
+        [
+          {
+            "node": "Valid request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid request?": {
+      "main": [
+        [
+          {
+            "node": "Recording to file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recording to file": {
+      "main": [
+        [
+          {
+            "node": "Whisper: what was read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper: what was read": {
+      "main": [
+        [
+          {
+            "node": "Match words and give feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match words and give feedback": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "pinData": {}
+}

@@ -31,6 +31,12 @@ export type Database = {
         Update: { answered?: number; child_id?: string; first_try?: number; helped?: number; quest_id?: string; total?: number; updated_at?: string; world?: string }
         Relationships: [{ foreignKeyName: 'quest_progress_child_id_fkey'; columns: ['child_id']; isOneToOne: false; referencedRelation: 'children'; referencedColumns: ['id'] }]
       }
+      reading_sessions: {
+        Row: { child_id: string; clear: number; created_at: string; id: string; kind: string; parts: number; parts_total: number; practice: string[]; text_id: string; title: string; words: number; world: string }
+        Insert: { child_id: string; clear: number; created_at?: string; id?: string; kind: string; parts: number; parts_total: number; practice?: string[]; text_id: string; title: string; words: number; world: string }
+        Update: { child_id?: string; clear?: number; created_at?: string; id?: string; kind?: string; parts?: number; parts_total?: number; practice?: string[]; text_id?: string; title?: string; words?: number; world?: string }
+        Relationships: [{ foreignKeyName: 'reading_sessions_child_id_fkey'; columns: ['child_id']; isOneToOne: false; referencedRelation: 'children'; referencedColumns: ['id'] }]
+      }
       scans: {
         Row: { child_id: string; created_at: string; id: string; result: Json; score: number | null; subject: string; total: number | null; year: number }
         Insert: { child_id: string; created_at?: string; id?: string; result: Json; score?: number | null; subject: string; total?: number | null; year: number }
